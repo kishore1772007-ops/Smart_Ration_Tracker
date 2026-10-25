@@ -1,0 +1,334 @@
+{% extends "base.html" %}
+
+{% block title %}Operations & Transactions | Smart Ration Tracker{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+  <a href="/">Tamil Nadu</a>
+  <span class="breadcrumb-separator">&gt;</span>
+  <span style="color: var(--text-primary); font-weight: 600;">Stock Operations &amp; Ledger Mutations</span>
+</div>
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Operational Stock Transactions</h1>
+    <p class="page-subtitle">Submit immutable ledger transactions &bull; Enforces zero over-dispatch, zero over-distribution &bull; Audit logged</p>
+  </div>
+</div>
+
+<!-- ALERT / FEEDBACK TOAST CONTAINER -->
+<div id="toastNotification" style="display:none; padding:14px 20px; border-radius:8px; margin-bottom:24px; font-weight:600; font-size:0.9rem;"></div>
+
+<!-- TABS NAVIGATION -->
+<div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:24px; border-bottom:1px solid var(--border-subtle); padding-bottom:12px;">
+  <button class="select-input active-tab" onclick="switchTab('tabReceipt')" id="btnTabReceipt" style="font-weight:700;">1. Godown Receipt</button>
+  <button class="select-input" onclick="switchTab('tabDispatch')" id="btnTabDispatch" style="font-weight:700;">2. Dispatch Consignment</button>
+  <button class="select-input" onclick="switchTab('tabConfirm')" id="btnTabConfirm" style="font-weight:700;">3. Confirm Delivery</button>
+  <button class="select-input" onclick="switchTab('tabDistribution')" id="btnTabDistribution" style="font-weight:700;">4. Record Distribution</button>
+  <button class="select-input" onclick="switchTab('tabAdjustment')" id="btnTabAdjustment" style="font-weight:700;">5. Stock Adjustment</button>
+  <button class="select-input" onclick="switchTab('tabMeasurement')" id="btnTabMeasurement" style="font-weight:700;">6. Inspector Measurement</button>
+</div>
+
+<!-- FORM CONTAINERS -->
+<div class="table-card" style="max-width:800px; margin:0 auto 32px;">
+
+  <!-- 1. RECEIPT FORM -->
+  <form id="formReceipt" onsubmit="handleReceiptSubmit(event)" style="display:block;">
+    <h2 class="table-title" style="margin-bottom:6px;">Record Central Grain Receipt (FCI / Supplier)</h2>
+    <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:20px;">Arrived at Central Buffer Godown. Increases Godown expected stock.</p>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+      <div>
+        <label for="receiptGodownId" style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">Target Godown:</label>
+        <select id="receiptGodownId" class="select-input" style="width:100%;" required>
+          {% for g in godowns %}
+          <option value="{{ g.id }}">{{ g.name }} ({{ g.id }})</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div>
+        <label for="receiptQty" style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">Quantity Received (kg):</label>
+        <input type="number" step="0.01" min="0.01" id="receiptQty" class="select-input" style="width:100%;" placeholder="e.g. 25000" required>
+      </div>
+    </div>
+
+    <div style="margin-bottom:20px;">
+      <label for="receiptRef" style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">Consignment Reference / Rake Receipt ID:</label>
+      <input type="text" id="receiptRef" class="select-input" style="width:100%;" placeholder="e.g. FCI-RAKE-2026-CH-09" required>
+    </div>
+
+    <button type="submit" class="select-input" style="background:var(--primary); color:#ffffff; font-weight:700; border:none; padding:10px 24px;">
+      Commit Receipt to Ledger &rarr;
+    </button>
+  </form>
+
+  <!-- 2. DISPATCH FORM -->
+  <form id="formDispatch" onsubmit="handleDispatchSubmit(event)" style="display:none;">
+    <h2 class="table-title" style="margin-bottom:6px;">Create Outbound Consignment Dispatch</h2>
+    <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:20px;">
+      Creates a PENDING delivery. Decreases Godown balance immediately. Rejects if quantity exceeds Godown stock.
+    </p>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+      <div>
+        <label for="dispatchGodownId" style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">Source Godown:</label>
+        <select id="dispatchGodownId" class="select-input" style="width:100%;" required>
+          {% for g in godowns %}
+          <option value="{{ g.id }}">{{ g.name }} ({{ g.id }})</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div>
+        <label for="dispatchShopId" style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">Destination Fair-Price Shop:</label>
+        <select id="dispatchShopId" class="select-input" style="width:100%;" required>
+          {% for s in shops %}
+          <option value="{{ s.id }}">{{ s.name }} ({{ s.id }}) - {{ s.godown_id }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+      <div>
+        <label for="dispatchQty" style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">Dispatch Quantity (kg):</label>
+        <input type="number" step="0.01" min="0.01" id="dispatchQty" class="select-input" style="width:100%;" placeholder="e.g. 2000" required>
+      </div>
+
+      <div>
+        <label for="dispatchNotes" style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">Carrier / Vehicle Notes:</label>
+        <input type="text" id="dispatchNotes" class="select-input" style="width:100%;" placeholder="e.g. TN-01-AB-1234 (Lorry)">
+      </div>
+    </div>
+
+    <button type="submit" class="select-input" style="background:var(--primary); color:#ffffff; font-weight:700; border:none; padding:10px 24px;">
+      Dispatch Consignment &rarr;
+    </button>
+  </form>
+
+  <!-- 3. CONFIRM DELIVERY FORM -->
+  <form id="formConfirm" onsubmit="handleConfirmSubmit(event)" style="display:none;">
+    <h2 class="table-title" style="margin-bottom:6px;">Confirm Arrival at Fair-Price Shop</h2>
+    <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:20px;">
+      Records physically weighed quantity into Shop expected balance. Mismatches are flagged as "Received with Difference".
+    </p>
+
+    <div style="margin-bottom:16px;">
+      <label for="confirmDeliveryId" style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">Select In-Transit / Pending Consignment:</label>
+      <select id="confirmDeliveryId" class="select-input" style="width:100%;" required onchange="populateDispatchedQty(this)">
+        <option value="" disabled selected>-- Select Consignment --</option>
+        {% for d in pending_deliveries %}
+        <option value="{{ d.id }}" data-dispatched="{{ d.dispatched_qty_kg }}" data-shop="{{ d.to_shop_id }}">
+          {{ d.id }} &bull; {{ d.to_shop_id }} (Dispatched: {{ '{:,.0f}'.format(d.dispatched_qty_kg) }} kg) - {{ d.status }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+      <div>
+        <label for="confirmReceivedQty" style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">Physically Received Quantity (kg):</label>
+        <input type="number" step="0.01" min="0.01" id="confirmReceivedQty" class="select-input" style="width:100%;" placeholder="e.g. 2000" required>
+      </div>
+
+      <div>
+        <label for="confirmNotes" style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">Weighbridge / Condition Notes:</label>
+        <input type="text" id="confirmNotes" class="select-input" style="width:100%;" placeholder="e.g. Gunny bags intact, weighed on shop scale">
+      </div>
+    </div>
+
+    <button type="submit" class="select-input" style="background:var(--status-normal); color:#ffffff; font-weight:700; border:none; padding:10px 24px;">
+      Confirm Delivery Receipt &rarr;
+    </button>
+  </form>
+
+  <!-- 4. RECORD DISTRIBUTION FORM -->
+  <form id="formDistribution" onsubmit="handleDistributionSubmit(event)" style="display:none;">
+    <h2 class="table-title" style="margin-bottom:6px;">Record Beneficiary POS Distribution</h2>
+    <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:20px;">
+      Issued to cardholders. Decreases Shop balance. Rejects over-distribution if quantity exceeds Shop stock.
+    </p>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+      <div>
+        <label for="distShopId" style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">Distributing Shop:</label>
+        <select id="distShopId" class="select-input" style="width:100%;" required>
+          {% for s in shops %}
+          <option value="{{ s.id }}">{{ s.name }} ({{ s.id }})</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div>
+        <label for="distQty" style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">Distributed Quantity (kg):</label>
+        <input type="number" step="0.01" min="0.01" id="distQty" class="select-input" style="width:100%;" placeholder="e.g. 500" required>
+      </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px;">
+      <div>
+        <label for="distCards" style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">Cardholder Households Served:</label>
+        <input type="number" min="1" id="distCards" class="select-input" style="width:100%;" placeholder="e.g. 120" required>
+      </div>
+
+      <div>
+        <label for="distRef" style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">EPOS Transaction Batch ID:</label>
+        <input type="text" id="distRef" class="select-input" style="width:100%;" placeholder="e.g. POS-BATCH-2026-10-24">
+      </div>
+    </div>
+
+    <button type="submit" class="select-input" style="background:var(--primary); color:#ffffff; font-weight:700; border:none; padding:10px 24px;">
+      Record POS Distribution &rarr;
+    </button>
+  </form>
+
+  <!-- 5. STOCK ADJUSTMENT FORM -->
+  <form id="formAdjustment" onsubmit="handleAdjustmentSubmit(event)" style="display:none;">
+    <h2 class="table-title" style="margin-bottom:6px;">Record Stock Adjustment (Reason Required)</h2>
+    <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:20px;">
+      Moisture variation or inventory reconciliation. Deductions cannot result in negative stock. Reason strictly mandatory.
+    </p>
+
+    <div style="display:grid; grid-template-columns:1fr 2fr; gap:16px; margin-bottom:16px;">
+      <div>
+        <label for="adjLocType" style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">Location Type:</label>
+        <select id="adjLocType" class="select-input" style="width:100%;" onchange="toggleAdjustmentLocations(this.value)">
+          <option value="godown">Godown</option>
+          <option value="shop">Fair-Price Shop</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="adjLocId" style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">Target Location:</label>
+        <select id="adjLocId" class="select-input" style="width:100%;" required>
+          {% for g in godowns %}
+          <option value="{{ g.id }}" class="opt-godown">{{ g.name }} ({{ g.id }})</option>
+          {% endfor %}
+          {% for s in shops %}
+          <option value="{{ s.id }}" class="opt-shop" style="display:none;">{{ s.name }} ({{ s.id }})</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div style="margin-bottom:16px;">
+      <label for="adjQty" style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">Adjustment Quantity (+ for gain, &minus; for deduction kg):</label>
+      <input type="number" step="0.01" id="adjQty" class="select-input" style="width:100%;" placeholder="e.g. -25.5 or +50.0" required>
+    </div>
+
+    <div style="margin-bottom:20px;">
+      <label for="adjReason" style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">Mandatory Audit Reason (min 5 chars):</label>
+      <textarea id="adjReason" class="select-input" style="width:100%; height:80px; resize:vertical;" placeholder="e.g. Weighbridge calibration difference verified with DRO representative" required minlength="5"></textarea>
+    </div>
+
+    <button type="submit" class="select-input" style="background:#b45309; color:#ffffff; font-weight:700; border:none; padding:10px 24px;">
+      Submit Adjustment with Reason &rarr;
+    </button>
+  </form>
+
+  <!-- 6. INSPECTOR MEASUREMENT FORM -->
+  <form id="formMeasurement" onsubmit="handleMeasurementSubmit(event)" style="display:none;">
+    <h2 class="table-title" style="margin-bottom:6px;">Inspector Physical Stock Verification</h2>
+    <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:20px;">
+      Official inspection entry. Automatically compared against derived stock. Discrepancies generate neutral verification alerts.
+    </p>
+
+    <div style="display:grid; grid-template-columns:1fr 2fr; gap:16px; margin-bottom:16px;">
+      <div>
+        <label for="measLocType" style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">Location Type:</label>
+        <select id="measLocType" class="select-input" style="width:100%;" onchange="toggleMeasurementLocations(this.value)">
+          <option value="godown">Godown</option>
+          <option value="shop">Fair-Price Shop</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="measLocId" style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">Inspected Location:</label>
+        <select id="measLocId" class="select-input" style="width:100%;" required>
+          {% for g in godowns %}
+          <option value="{{ g.id }}" class="opt-meas-godown">{{ g.name }} ({{ g.id }})</option>
+          {% endfor %}
+          {% for s in shops %}
+          <option value="{{ s.id }}" class="opt-meas-shop" style="display:none;">{{ s.name }} ({{ s.id }})</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+      <div>
+        <label for="measStockQty" style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">Physically Measured Stock (kg):</label>
+        <input type="number" step="0.01" min="0" id="measStockQty" class="select-input" style="width:100%;" placeholder="e.g. 3500.0" required>
+      </div>
+
+      <div>
+        <label for="measInspectorName" style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">Inspector Full Name:</label>
+        <input type="text" id="measInspectorName" class="select-input" style="width:100%;" value="A. Jayakumar (Stock Inspector)" required>
+      </div>
+    </div>
+
+    <div style="margin-bottom:20px;">
+      <label for="measRemarks" style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">Inspection Remarks:</label>
+      <input type="text" id="measRemarks" class="select-input" style="width:100%;" placeholder="e.g. Surprise physical inventory audit conducted on stack #3">
+    </div>
+
+    <button type="submit" class="select-input" style="background:var(--primary); color:#ffffff; font-weight:700; border:none; padding:10px 24px;">
+      Log Physical Inspection Audit &rarr;
+    </button>
+  </form>
+
+</div>
+
+<!-- RECENT IMMUTABLE AUDIT LOG STREAM -->
+<section class="table-card" aria-label="Audit Log">
+  <div class="table-header">
+    <div>
+      <h2 class="table-title">Live System Audit Log (Recent 15 Entries)</h2>
+      <p style="font-size:0.8rem; color:var(--text-secondary); margin-top:2px;">
+        Every create/update writes an immutable audit_logs row.
+      </p>
+    </div>
+    <span class="chart-badge">Audit Integrity Active</span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="custom-table" id="auditStreamTable">
+      <thead>
+        <tr>
+          <th>Log ID</th>
+          <th>Timestamp</th>
+          <th>Action</th>
+          <th>User</th>
+          <th>Entity</th>
+          <th>Audit Details</th>
+        </tr>
+      </thead>
+      <tbody id="auditStreamBody">
+        {% for log in recent_audits %}
+        <tr>
+          <td><code>#{{ log.id }}</code></td>
+          <td>{{ log.timestamp.strftime("%Y-%m-%d %H:%M:%S") }}</td>
+          <td><span class="badge badge-normal" style="font-size:0.75rem;">{{ log.action }}</span></td>
+          <td><strong>{{ log.username }}</strong></td>
+          <td>{{ log.entity_type }} ({{ log.entity_id }})</td>
+          <td style="font-size:0.85rem; color:var(--text-secondary);">{{ log.details }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="6" style="text-align: center; padding: 36px 16px; color: var(--text-secondary);">
+            <div style="font-size: 28px; margin-bottom: 6px;">📝</div>
+            <strong style="color: var(--text-primary); font-size: 14px; display: block; margin-bottom: 4px;">No audit logs recorded yet</strong>
+            <span style="font-size: 13px;">System transactions and mutations will appear here in real-time.</span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/transactions.js"></script>
+{% endblock %}

@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}Login — Smart Ration Tracker{% endblock %}
+
+{% block content %}
+<div style="max-width: 520px; margin: 40px auto; padding: 0 16px;">
+    <div class="card" style="padding: 32px; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.08); background: #ffffff;">
+        <div style="text-align: center; margin-bottom: 24px;">
+            <div style="font-size: 38px; margin-bottom: 8px;">🌾</div>
+            <h2 style="margin: 0 0 6px 0; font-size: 22px; color: #1e293b;">Smart Ration Tracker</h2>
+            <p style="margin: 0; color: #64748b; font-size: 13.5px;">Tamil Nadu PDS Rice Monitoring & Planning</p>
+        </div>
+
+        {% if current_user %}
+        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 14px; margin-bottom: 20px; text-align: center;">
+            <p style="margin: 0 0 8px 0; font-size: 14px; color: #166534;">
+                Currently logged in as <strong>{{ current_user.full_name }}</strong> (<code>{{ current_user.role }}</code>)
+            </p>
+            <a href="/logout" class="btn" style="background: #ef4444; color: white; padding: 6px 14px; font-size: 13px; text-decoration: none; border-radius: 6px;">Sign Out</a>
+            <a href="/" class="btn" style="background: #2563eb; color: white; padding: 6px 14px; font-size: 13px; text-decoration: none; border-radius: 6px; margin-left: 8px;">Go to Dashboard</a>
+        </div>
+        {% else %}
+
+        <div id="login-error-alert" style="display: none; background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; padding: 12px; border-radius: 6px; font-size: 13.5px; margin-bottom: 20px;"></div>
+
+        <form id="login-form">
+            <div style="margin-bottom: 16px;">
+                <label for="username" style="display: block; font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 6px;">Username</label>
+                <input type="text" id="username" name="username" required value="admin_tn"
+                       style="width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;">
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label for="password" style="display: block; font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 6px;">Password</label>
+                <input type="password" id="password" name="password" required value="demo123"
+                       style="width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; box-sizing: border-box;">
+            </div>
+
+            <button type="submit" id="login-submit-btn" class="btn"
+                    style="width: 100%; background: #2563eb; color: #ffffff; padding: 12px; font-size: 15px; font-weight: 600; border: none; border-radius: 6px; cursor: pointer; transition: background 0.2s;">
+                Sign In
+            </button>
+        </form>
+
+        <div style="margin-top: 28px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+            <p style="margin: 0 0 10px 0; font-size: 12.5px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">
+                ⚡ Quick Demo Role Selection (Click to Fill)
+            </p>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <button type="button" class="demo-role-btn" onclick="selectRole('admin_tn', 'state_admin', 'State Admin (All TN)')"
+                        style="text-align: left; padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 6px; background: #f8fafc; cursor: pointer; font-size: 12px;">
+                    <strong>Dr. Ramanathan</strong><br><span style="color: #64748b;">State Admin</span>
+                </button>
+                <button type="button" class="demo-role-btn" onclick="selectRole('officer_chennai', 'district_officer', 'District Officer (Chennai)')"
+                        style="text-align: left; padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 6px; background: #f8fafc; cursor: pointer; font-size: 12px;">
+                    <strong>S. Meenakshi</strong><br><span style="color: #64748b;">Dist Officer (Chennai)</span>
+                </button>
+                <button type="button" class="demo-role-btn" onclick="selectRole('mgr_gdn001', 'godown_manager', 'Godown Manager (GDN-001)')"
+                        style="text-align: left; padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 6px; background: #f8fafc; cursor: pointer; font-size: 12px;">
+                    <strong>V. Soundararajan</strong><br><span style="color: #64748b;">Godown Mgr (GDN-001)</span>
+                </button>
+                <button type="button" class="demo-role-btn" onclick="selectRole('mgr_fps0001', 'shop_manager', 'Shop Manager (FPS-0001)')"
+                        style="text-align: left; padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 6px; background: #f8fafc; cursor: pointer; font-size: 12px;">
+                    <strong>M. Murugan</strong><br><span style="color: #64748b;">Shop Mgr (FPS-0001)</span>
+                </button>
+                <button type="button" class="demo-role-btn" onclick="selectRole('inspector_tn', 'stock_inspector', 'Stock Inspector (State HQ)')"
+                        style="text-align: left; padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 6px; background: #f8fafc; cursor: pointer; font-size: 12px;">
+                    <strong>A. Jayakumar</strong><br><span style="color: #64748b;">Stock Inspector</span>
+                </button>
+                <button type="button" class="demo-role-btn" onclick="selectRole('data_entry_tn', 'data_entry_officer', 'Data Entry Executive (Chennai)')"
+                        style="text-align: left; padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 6px; background: #f8fafc; cursor: pointer; font-size: 12px;">
+                    <strong>P. Priya</strong><br><span style="color: #64748b;">Data Entry Officer</span>
+                </button>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function selectRole(username, role, label) {
+    document.getElementById('username').value = username;
+    document.getElementById('password').value = 'demo123';
+    const alertBox = document.getElementById('login-error-alert');
+    if (alertBox) alertBox.style.display = 'none';
+}
+
+document.getElementById('login-form')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('login-submit-btn');
+    const alertBox = document.getElementById('login-error-alert');
+    btn.disabled = true;
+    btn.textContent = 'Verifying credentials...';
+    alertBox.style.display = 'none';
+
+    try {
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value;
+
+        const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.detail || 'Login failed. Please verify credentials.');
+        }
+
+        // Store token in localStorage for API client use
+        localStorage.setItem('access_token', data.access_token);
+        localStorage.setItem('current_user', JSON.stringify(data.user));
+
+        // Redirect to homepage or scoped view
+        if (data.user.role === 'shop_manager' && data.user.shop_id) {
+            window.location.href = `/shops/${data.user.shop_id}`;
+        } else if (data.user.role === 'godown_manager' && data.user.godown_id) {
+            window.location.href = `/godowns/${data.user.godown_id}`;
+        } else if (data.user.role === 'district_officer' && data.user.district_id) {
+            window.location.href = `/districts/${data.user.district_id}`;
+        } else {
+            window.location.href = '/';
+        }
+    } catch (err) {
+        alertBox.textContent = err.message;
+        alertBox.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Sign In';
+    }
+});
+</script>
+{% endblock %}

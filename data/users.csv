@@ -1,0 +1,7 @@
+id,username,email,password_hash,role,district_id,godown_id,shop_id,full_name
+1,admin_tn,state.admin@tnpds.demo,$2b$12$JF9oAVfaz4Ha96SYdd6ssOiVrqv5lHOePODKtK92SY.sh.INHeRku,state_admin,,,,Dr. K. Ramanathan (IAS)
+2,officer_chennai,district.chennai@tnpds.demo,$2b$12$JF9oAVfaz4Ha96SYdd6ssOiVrqv5lHOePODKtK92SY.sh.INHeRku,district_officer,1,,,S. Meenakshi (DRO Chennai)
+3,mgr_gdn001,manager.gdn001@tnpds.demo,$2b$12$JF9oAVfaz4Ha96SYdd6ssOiVrqv5lHOePODKtK92SY.sh.INHeRku,godown_manager,1,GDN-001,,V. Soundararajan (Godown Mgr)
+4,mgr_fps0001,manager.fps0001@tnpds.demo,$2b$12$JF9oAVfaz4Ha96SYdd6ssOiVrqv5lHOePODKtK92SY.sh.INHeRku,shop_manager,1,GDN-001,FPS-0001,M. Murugan (Shop In-charge)
+5,inspector_tn,inspector.hq@tnpds.demo,$2b$12$JF9oAVfaz4Ha96SYdd6ssOiVrqv5lHOePODKtK92SY.sh.INHeRku,stock_inspector,,,,A. Jayakumar (Senior Quality & Stock Inspector)
+6,data_entry_tn,dataentry.chennai@tnpds.demo,$2b$12$JF9oAVfaz4Ha96SYdd6ssOiVrqv5lHOePODKtK92SY.sh.INHeRku,data_entry_officer,1,,,P. Priya (Data Entry Executive)

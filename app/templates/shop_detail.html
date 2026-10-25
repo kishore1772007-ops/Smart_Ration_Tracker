@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+
+{% block title %}{{ detail.shop.name }} | Shop Detail{% endblock %}
+
+{% block content %}
+<!-- BREADCRUMBS: Tamil Nadu > District > Godown > Shop -->
+<div class="breadcrumb" aria-label="Breadcrumb navigation">
+  <a href="/">Tamil Nadu</a>
+  <span class="breadcrumb-separator">&gt;</span>
+  <a href="/districts/{{ detail.district.id }}">{{ detail.district.name }} District</a>
+  <span class="breadcrumb-separator">&gt;</span>
+  <a href="/godowns/{{ detail.godown.id }}">{{ detail.godown.name }}</a>
+  <span class="breadcrumb-separator">&gt;</span>
+  <span style="color: var(--text-primary); font-weight: 600;">{{ detail.shop.name }} ({{ detail.shop.code }})</span>
+</div>
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">{{ detail.shop.name }}</h1>
+    <p class="page-subtitle">
+      ID: <strong>{{ detail.shop.id }}</strong> &bull; 
+      District: {{ detail.district.name }} &bull; 
+      Supplied by: <a href="/godowns/{{ detail.godown.id }}" class="table-link">{{ detail.godown.name }} ({{ detail.godown.id }})</a>
+    </p>
+  </div>
+  <div>
+    <span class="badge {% if detail.metrics.status == 'CRITICAL' %}badge-critical{% elif detail.metrics.status == 'LOW' %}badge-low{% else %}badge-normal{% endif %}" style="font-size:0.9rem; padding:6px 16px;">
+      Stock Status: {{ detail.metrics.status }}
+    </span>
+  </div>
+</div>
+
+<!-- FOUR KPI STOCK CARDS: opening, received, distributed, expected closing -->
+<section class="cards-grid" aria-label="Shop Stock Balances">
+  <!-- 1. Opening Stock -->
+  <div class="stat-card">
+    <div class="card-label">Opening Stock</div>
+    <div class="card-value">{{ '{:,.0f}'.format(detail.metrics.opening_stock_kg) }} <span style="font-size:1rem; font-weight:500;">kg</span></div>
+    <div class="card-subtext">Initial shop balance</div>
+  </div>
+
+  <!-- 2. Received (Confirmed Deliveries) -->
+  <div class="stat-card" style="border-left: 4px solid var(--status-normal);">
+    <div class="card-label">Confirmed Deliveries</div>
+    <div class="card-value" style="color: var(--status-normal);">+{{ '{:,.0f}'.format(detail.metrics.confirmed_deliveries_kg) }} <span style="font-size:1rem; font-weight:500;">kg</span></div>
+    <div class="card-subtext">Received from {{ detail.godown.code }}</div>
+  </div>
+
+  <!-- 3. Distributed -->
+  <div class="stat-card" style="border-left: 4px solid var(--primary-light);">
+    <div class="card-label">Distributed via POS</div>
+    <div class="card-value" style="color: var(--primary-light);">-{{ '{:,.0f}'.format(detail.metrics.distributions_kg) }} <span style="font-size:1rem; font-weight:500;">kg</span></div>
+    <div class="card-subtext">Issued to {{ detail.shop.beneficiaries_count }} cardholders</div>
+  </div>
+
+  <!-- 4. Expected Closing Stock -->
+  <div class="stat-card shop-card" style="background: #f8fafc; border-color: var(--status-normal);">
+    <div class="card-label" style="color: var(--primary);">Expected Closing Stock</div>
+    <div class="card-value" style="color: var(--primary);">{{ '{:,.2f}'.format(detail.metrics.expected_stock_kg) }} <span style="font-size:1rem; font-weight:500;">kg</span></div>
+    <div class="card-subtext">Avg monthly demand: {{ '{:,.0f}'.format(detail.metrics.avg_monthly_dist_kg) }} kg</div>
+  </div>
+</section>
+
+<!-- FORMULA EXPLANATION BANNER -->
+<div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:12px 18px; margin-bottom:28px; font-size:0.85rem; color:#1e40af; display:flex; align-items:center; gap:10px;">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+  <div>
+    <strong>Derived Stock Formula:</strong> Expected Closing Stock (<code>{{ '{:,.2f}'.format(detail.metrics.expected_stock_kg) }} kg</code>) = Opening Stock (<code>{{ '{:,.0f}'.format(detail.metrics.opening_stock_kg) }}</code>) + Confirmed Deliveries (<code>{{ '{:,.0f}'.format(detail.metrics.confirmed_deliveries_kg) }}</code>) &minus; Distributed (<code>{{ '{:,.0f}'.format(detail.metrics.distributions_kg) }}</code>) &plusmn; Adjustments (<code>{{ '{:,.0f}'.format(detail.metrics.adjustments_kg) }}</code>).
+  </div>
+</div>
+
+<!-- TWO COLUMN GRID: CHART & PREDICTION PLACEHOLDER -->
+<section style="display: grid; grid-template-columns: repeat(auto-fit, minmax(460px, 1fr)); gap: 20px; margin-bottom: 28px;">
+  <!-- Monthly Distribution History Chart -->
+  <div class="chart-card">
+    <div class="chart-header">
+      <span class="chart-title">Monthly Distribution History (kg)</span>
+      <span class="chart-badge">Past 6 Months</span>
+    </div>
+    <div class="chart-container" style="height: 250px;">
+      <canvas id="chartShopMonthlyHistory"></canvas>
+    </div>
+  </div>
+
+  <!-- Demand Prediction Placeholder Card -->
+  <div class="chart-card" style="border: 2px dashed #93c5fd; background: #faf5ff;">
+    <div class="chart-header" style="border-color: #e9d5ff;">
+      <div>
+        <span class="chart-title" style="color: #6b21a8;">Demand Prediction & Replenishment</span>
+        <div style="font-size: 0.75rem; color: #7e22ce; font-weight: 600; margin-top: 2px;">
+          {{ detail.prediction_placeholder.label }}
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <button onclick="runShopPrediction('{{ detail.shop.id }}')" class="select-input" style="padding:4px 10px; font-size:0.75rem; background:#6b21a8; color:#ffffff; border:none; cursor:pointer; font-weight:600;">Run Model &rarr;</button>
+        <span class="chart-badge" style="background:#f3e8ff; color:#6b21a8;">Phase 7 Model</span>
+      </div>
+    </div>
+
+    <div style="padding: 10px 0;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding:10px 14px; background:#ffffff; border-radius:8px; border:1px solid #e9d5ff;">
+        <div>
+          <div style="font-size:0.75rem; color:var(--text-secondary); text-transform:uppercase; font-weight:600;">Recommended Replenishment</div>
+          <div style="font-size:1.8rem; font-weight:800; color:#6b21a8;">
+            {{ '{:,.2f}'.format(detail.prediction_placeholder.recommended_replenishment_kg) }} <span style="font-size:1rem; font-weight:500;">kg</span>
+          </div>
+        </div>
+        <div style="text-align:right; font-size:0.8rem; color:var(--text-secondary);">
+          <div>Formula: <code>max(0, Demand + Buffer - Stock - Incoming)</code></div>
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; font-size:0.85rem;">
+        <div style="background:#ffffff; padding:8px 12px; border-radius:6px; border:1px solid #f3e8ff;">
+          <span style="color:var(--text-secondary);">Predicted Demand (4-mo avg):</span>
+          <strong style="float:right;">{{ '{:,.0f}'.format(detail.prediction_placeholder.predicted_demand_kg) }} kg</strong>
+        </div>
+        <div style="background:#ffffff; padding:8px 12px; border-radius:6px; border:1px solid #f3e8ff;">
+          <span style="color:var(--text-secondary);">Safety Buffer (10%):</span>
+          <strong style="float:right;">+{{ '{:,.0f}'.format(detail.prediction_placeholder.safety_buffer_kg) }} kg</strong>
+        </div>
+        <div style="background:#ffffff; padding:8px 12px; border-radius:6px; border:1px solid #f3e8ff;">
+          <span style="color:var(--text-secondary);">Usable Stock:</span>
+          <strong style="float:right;">&minus;{{ '{:,.0f}'.format(detail.prediction_placeholder.usable_stock_kg) }} kg</strong>
+        </div>
+        <div style="background:#ffffff; padding:8px 12px; border-radius:6px; border:1px solid #f3e8ff;">
+          <span style="color:var(--text-secondary);">Planned Incoming:</span>
+          <strong style="float:right;">&minus;{{ '{:,.0f}'.format(detail.prediction_placeholder.planned_incoming_kg) }} kg</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CURRENT ALERTS PANEL -->
+<section class="table-card" aria-label="Shop Alerts">
+  <div class="table-header">
+    <h2 class="table-title">Operational Alerts & Attention Notices</h2>
+    <span class="chart-badge">{{ detail.alerts | length }} Active Alerts</span>
+  </div>
+
+  {% if detail.alerts %}
+  <div style="display:flex; flex-direction:column; gap:12px;">
+    {% for a in detail.alerts %}
+    <div style="display:flex; gap:16px; padding:16px; border-radius:8px; border:1px solid var(--border-subtle); background:{% if a.severity == 'CRITICAL' %}var(--status-critical-bg){% elif a.severity == 'HIGH' %}var(--status-low-bg){% else %}#f8fafc{% endif %};">
+      <div style="font-size:1.5rem;">
+        {% if a.severity == 'CRITICAL' %}🚨{% elif a.severity == 'HIGH' %}⚠️{% else %}ℹ️{% endif %}
+      </div>
+      <div style="flex:1;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <strong style="font-size:0.95rem; color:var(--text-primary);">{{ a.title }}</strong>
+          <span class="badge {% if a.severity == 'CRITICAL' %}badge-critical{% elif a.severity == 'HIGH' %}badge-low{% else %}badge-normal{% endif %}">
+            {{ a.severity }}
+          </span>
+        </div>
+        <p style="font-size:0.85rem; color:var(--text-secondary); margin:4px 0 6px;">{{ a.explanation }}</p>
+        <div style="font-size:0.8rem; font-weight:600; color:var(--primary-light);">Action: {{ a.action }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div style="padding:24px; text-align:center; color:var(--text-muted); font-size:0.9rem;">
+    ✅ No active stock or delivery alerts for this shop. All operational metrics are normal.
+  </div>
+  {% endif %}
+</section>
+
+<!-- RECENT DELIVERIES CONSIGNMENT TABLE -->
+<section class="table-card" aria-label="Recent Deliveries">
+  <div class="table-header">
+    <h2 class="table-title">Recent Delivery Consignments</h2>
+    <span class="chart-badge">From Godown {{ detail.godown.code }}</span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="custom-table" id="shopDeliveriesTable">
+      <thead>
+        <tr>
+          <th>Delivery ID</th>
+          <th>Dispatched Date</th>
+          <th>Expected Arrival</th>
+          <th style="text-align: right;">Dispatched Qty (kg)</th>
+          <th style="text-align: right;">Received Qty (kg)</th>
+          <th>Status</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in detail.recent_deliveries %}
+        <tr>
+          <td><strong>{{ d.id }}</strong></td>
+          <td>{{ d.dispatched_date.strftime("%Y-%m-%d %H:%M") }}</td>
+          <td>{{ d.expected_delivery_date.strftime("%Y-%m-%d %H:%M") }}</td>
+          <td style="text-align: right; font-family: monospace;">{{ '{:,.2f}'.format(d.dispatched_qty_kg) }}</td>
+          <td style="text-align: right; font-family: monospace; font-weight: 600;">
+            {% if d.received_qty_kg > 0 %}
+              {{ '{:,.2f}'.format(d.received_qty_kg) }}
+            {% else %}
+              <span style="color:var(--text-muted);">&mdash;</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="badge {% if d.status == 'DELIVERED' %}badge-normal{% elif d.status == 'DELAYED' %}badge-delayed{% elif d.status == 'RECEIVED_WITH_DIFFERENCE' %}badge-low{% else %}badge-low{% endif %}">
+              {{ d.status.replace('_', ' ') }}
+            </span>
+          </td>
+          <td style="font-size: 0.8rem; color: var(--text-secondary);">{{ d.notes }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="7" style="text-align: center; padding: 36px 16px; color: var(--text-secondary);">
+            <div style="font-size: 28px; margin-bottom: 6px;">🚚</div>
+            <strong style="color: var(--text-primary); font-size: 14px; display: block; margin-bottom: 4px;">No consignment deliveries recorded</strong>
+            <span style="font-size: 13px;">No inbound delivery consignments have been dispatched to this shop yet.</span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const ctx = document.getElementById("chartShopMonthlyHistory")?.getContext("2d");
+    if (!ctx) return;
+
+    const labels = {{ detail.monthly_history.labels | tojson }};
+    const values = {{ detail.monthly_history.quantities | tojson }};
+
+    new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: labels,
+        datasets: [{
+          label: "Monthly Distribution (kg)",
+          data: values,
+          backgroundColor: "#10b981",
+          borderRadius: 6,
+          hoverBackgroundColor: "#059669",
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => ` Distributed: ${new Intl.NumberFormat('en-IN').format(ctx.parsed.y)} kg`
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              callback: (val) => `${val / 1000}k`
+            },
+            grid: { color: "#f1f5f9" }
+          },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+  });
+
+  async function runShopPrediction(shopId) {
+    try {
+      const res = await fetch("/api/predictions/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ shop_id: shopId, lookback_months: 4, buffer_pct: 10.0, persist: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Prediction run failed");
+      alert(`✅ Prediction Recorded: Recommended Replenishment = ${data.recommended_replenishment_kg.toLocaleString()} kg\n"${data.label}"`);
+      window.location.reload();
+    } catch (e) {
+      alert(`Error running prediction: ${e.message}`);
+    }
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,6 @@
+id,location_type,location_id,measured_date,measured_stock_kg,inspector_name,remarks
+MEA-0001,godown,GDN-001,2026-10-10 11:30:00,297720.0,A. Jayakumar,Quarterly physical stock verification completed. Gunny stacks properly arranged.
+MEA-0002,shop,FPS-0012,2026-10-18 14:15:00,8481.0,A. Jayakumar,Random physical weighment check conducted. Verification requested on stack counterfoil.
+MEA-0003,godown,GDN-003,2026-10-20 10:00:00,264700.0,A. Jayakumar,Silo capacity ultrasound and stack count check. Verification requested for moisture reduction reconciliation.
+MEA-0004,shop,FPS-0035,2026-10-22 15:45:00,3467.0,A. Jayakumar,Surprise audit on closing balance. Unaccounted bags noticed; verification requested.
+MEA-0005,shop,FPS-0001,2026-10-23 16:00:00,7466.0,A. Jayakumar,Routine monthly shop inspection. Physical tally matches POS registers.

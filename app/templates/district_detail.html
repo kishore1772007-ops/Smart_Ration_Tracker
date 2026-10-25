@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block title %}{{ detail.district.name }} District | Smart Ration Tracker{% endblock %}
+
+{% block content %}
+<!-- BREADCRUMBS: Tamil Nadu > District -->
+<div class="breadcrumb" aria-label="Breadcrumb navigation">
+  <a href="/">Tamil Nadu</a>
+  <span class="breadcrumb-separator">&gt;</span>
+  <span style="color: var(--text-primary); font-weight: 600;">{{ detail.district.name }} District</span>
+</div>
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">{{ detail.district.name }} District Overview</h1>
+    <p class="page-subtitle">Code: <strong>{{ detail.district.code }}</strong> &bull; Headquarters: {{ detail.district.headquarters }} &bull; Tamil Nadu Civil Supplies Corporation</p>
+  </div>
+</div>
+
+<!-- DISTRICT KPI CARDS -->
+<section class="cards-grid" aria-label="District Statistics">
+  <div class="stat-card godown-card">
+    <div class="card-label">Godown Buffer Stock</div>
+    <div class="card-value">{{ '{:,.0f}'.format(detail.total_godown_stock_kg) }} <span style="font-size:1rem; font-weight:500;">kg</span></div>
+    <div class="card-subtext">{{ detail.godowns_count }} buffer granaries in district</div>
+  </div>
+
+  <div class="stat-card shop-card">
+    <div class="card-label">Fair-Price Shop Stock</div>
+    <div class="card-value">{{ '{:,.0f}'.format(detail.total_shop_stock_kg) }} <span style="font-size:1rem; font-weight:500;">kg</span></div>
+    <div class="card-subtext">{{ detail.shops_count }} retail distribution shops</div>
+  </div>
+
+  <div class="stat-card dist-card">
+    <div class="card-label">Total District Stock</div>
+    <div class="card-value" style="color: var(--primary);">{{ '{:,.0f}'.format(detail.total_stock_kg) }} <span style="font-size:1rem; font-weight:500;">kg</span></div>
+    <div class="card-subtext">{{ '{:,.1f}'.format(detail.total_stock_kg / 1000.0) }} Metric Tonnes combined</div>
+  </div>
+
+  <div class="stat-card cards-card">
+    <div class="card-label">Active Beneficiaries</div>
+    <div class="card-value">{{ '{:,.0f}'.format(detail.total_beneficiaries) }}</div>
+    <div class="card-subtext">Registered household ration cardholders</div>
+  </div>
+</section>
+
+<!-- GODOWNS IN THIS DISTRICT -->
+<section class="table-card" aria-label="Godowns in District">
+  <div class="table-header">
+    <h2 class="table-title">District Buffer Godowns</h2>
+    <span class="chart-badge">{{ detail.godowns_count }} Storage Facilities</span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="custom-table">
+      <thead>
+        <tr>
+          <th>Godown ID</th>
+          <th>Name</th>
+          <th style="text-align: right;">Capacity (kg)</th>
+          <th style="text-align: right;">Opening Stock (kg)</th>
+          <th style="text-align: right;">Received (kg)</th>
+          <th style="text-align: right;">Dispatched (kg)</th>
+          <th style="text-align: right;">Expected Closing Stock (kg)</th>
+          <th style="text-align: center;">Utilization</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for g in detail.godowns %}
+        <tr>
+          <td><strong>{{ g.godown_code }}</strong></td>
+          <td>
+            <a href="/godowns/{{ g.location_id }}" class="table-link">
+              {{ g.godown_name }}
+            </a>
+          </td>
+          <td style="text-align: right; font-family: monospace;">{{ '{:,.0f}'.format(g.capacity_kg) }}</td>
+          <td style="text-align: right; font-family: monospace;">{{ '{:,.2f}'.format(g.opening_stock_kg) }}</td>
+          <td style="text-align: right; font-family: monospace; color: var(--status-normal);">+{{ '{:,.2f}'.format(g.receipts_kg) }}</td>
+          <td style="text-align: right; font-family: monospace; color: var(--primary-light);">-{{ '{:,.2f}'.format(g.dispatches_kg) }}</td>
+          <td style="text-align: right; font-family: monospace; font-weight: 700;">{{ '{:,.2f}'.format(g.expected_stock_kg) }}</td>
+          <td style="text-align: center;">
+            <span class="badge badge-normal">{{ g.utilization_pct }}%</span>
+          </td>
+          <td>
+            <a href="/godowns/{{ g.location_id }}" class="table-link" style="font-size:0.85rem;">View Ledger &rarr;</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="9" style="text-align: center; padding: 36px 16px; color: var(--text-secondary);">
+            <div style="font-size: 28px; margin-bottom: 6px;">🏛️</div>
+            <strong style="color: var(--text-primary); font-size: 14px; display: block; margin-bottom: 4px;">No buffer godowns in this district</strong>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- FAIR-PRICE SHOPS IN THIS DISTRICT -->
+<section class="table-card" aria-label="Shops in District">
+  <div class="table-header">
+    <h2 class="table-title">Fair-Price Shops in {{ detail.district.name }}</h2>
+    <span class="chart-badge">{{ detail.shops_count }} Shops</span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="custom-table">
+      <thead>
+        <tr>
+          <th>Shop ID</th>
+          <th>Shop Name</th>
+          <th>Linked Godown</th>
+          <th style="text-align: right;">Beneficiaries</th>
+          <th style="text-align: right;">Opening Stock (kg)</th>
+          <th style="text-align: right;">Received (kg)</th>
+          <th style="text-align: right;">Distributed (kg)</th>
+          <th style="text-align: right;">Expected Closing (kg)</th>
+          <th style="text-align: center;">Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in detail.shops %}
+        <tr>
+          <td><strong>{{ s.shop_code }}</strong></td>
+          <td>
+            <a href="/shops/{{ s.location_id }}" class="table-link">
+              {{ s.shop_name }}
+            </a>
+          </td>
+          <td>
+            <a href="/godowns/{{ s.godown_id }}" class="table-link" style="color:var(--text-secondary);">
+              {{ s.godown_id }}
+            </a>
+          </td>
+          <td style="text-align: right;">{{ s.beneficiaries_count }}</td>
+          <td style="text-align: right; font-family: monospace;">{{ '{:,.2f}'.format(s.opening_stock_kg) }}</td>
+          <td style="text-align: right; font-family: monospace; color: var(--status-normal);">+{{ '{:,.2f}'.format(s.confirmed_deliveries_kg) }}</td>
+          <td style="text-align: right; font-family: monospace; color: var(--text-secondary);">-{{ '{:,.2f}'.format(s.distributions_kg) }}</td>
+          <td style="text-align: right; font-family: monospace; font-weight: 700;">{{ '{:,.2f}'.format(s.expected_stock_kg) }}</td>
+          <td style="text-align: center;">
+            <span class="badge {% if s.status == 'CRITICAL' %}badge-critical{% elif s.status == 'LOW' %}badge-low{% else %}badge-normal{% endif %}">
+              {{ s.status }}
+            </span>
+          </td>
+          <td>
+            <a href="/shops/{{ s.location_id }}" class="table-link" style="font-size:0.85rem;">View Shop &rarr;</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="10" style="text-align: center; padding: 36px 16px; color: var(--text-secondary);">
+            <div style="font-size: 28px; margin-bottom: 6px;">🏪</div>
+            <strong style="color: var(--text-primary); font-size: 14px; display: block; margin-bottom: 4px;">No fair price shops in this district</strong>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

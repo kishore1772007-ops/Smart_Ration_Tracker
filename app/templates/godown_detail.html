@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block title %}{{ detail.godown.name }} | Godown Detail{% endblock %}
+
+{% block content %}
+<!-- BREADCRUMBS: Tamil Nadu > District > Godown -->
+<div class="breadcrumb" aria-label="Breadcrumb navigation">
+  <a href="/">Tamil Nadu</a>
+  <span class="breadcrumb-separator">&gt;</span>
+  <a href="/districts/{{ detail.district.id }}">{{ detail.district.name }} District</a>
+  <span class="breadcrumb-separator">&gt;</span>
+  <span style="color: var(--text-primary); font-weight: 600;">{{ detail.godown.name }} ({{ detail.godown.code }})</span>
+</div>
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">{{ detail.godown.name }}</h1>
+    <p class="page-subtitle">ID: <strong>{{ detail.godown.id }}</strong> &bull; District: {{ detail.district.name }} &bull; Operational Granary Depot</p>
+  </div>
+  <div>
+    <span class="badge badge-normal" style="font-size:0.85rem; padding:6px 14px;">
+      Storage Capacity: {{ '{:,.0f}'.format(detail.metrics.capacity_kg) }} kg &bull; Utilization: {{ detail.metrics.utilization_pct }}%
+    </span>
+  </div>
+</div>
+
+<!-- FIVE KPI STOCK CARDS: opening, received, dispatched, adjustments, expected closing -->
+<section class="cards-grid" aria-label="Godown Stock Balances">
+  <!-- 1. Opening Stock -->
+  <div class="stat-card">
+    <div class="card-label">Opening Stock</div>
+    <div class="card-value">{{ '{:,.0f}'.format(detail.metrics.opening_stock_kg) }} <span style="font-size:1rem; font-weight:500;">kg</span></div>
+    <div class="card-subtext">Baseline operational reserve</div>
+  </div>
+
+  <!-- 2. Received (FCI) -->
+  <div class="stat-card" style="border-left: 4px solid var(--status-normal);">
+    <div class="card-label">Total Received</div>
+    <div class="card-value" style="color: var(--status-normal);">+{{ '{:,.0f}'.format(detail.metrics.receipts_kg) }} <span style="font-size:1rem; font-weight:500;">kg</span></div>
+    <div class="card-subtext">Consignments from Central FCI Pool</div>
+  </div>
+
+  <!-- 3. Dispatched -->
+  <div class="stat-card" style="border-left: 4px solid var(--primary-light);">
+    <div class="card-label">Total Dispatched</div>
+    <div class="card-value" style="color: var(--primary-light);">-{{ '{:,.0f}'.format(detail.metrics.dispatches_kg) }} <span style="font-size:1rem; font-weight:500;">kg</span></div>
+    <div class="card-subtext">Outbound consignments to shops</div>
+  </div>
+
+  <!-- 4. Adjustments -->
+  <div class="stat-card">
+    <div class="card-label">Stock Adjustments</div>
+    <div class="card-value">{{ '{:+,.0f}'.format(detail.metrics.adjustments_kg) }} <span style="font-size:1rem; font-weight:500;">kg</span></div>
+    <div class="card-subtext">Moisture / physical audit reconciliations</div>
+  </div>
+
+  <!-- 5. Expected Closing Stock -->
+  <div class="stat-card godown-card" style="background: #f8fafc; border-color: var(--primary-light);">
+    <div class="card-label" style="color: var(--primary);">Expected Closing Stock</div>
+    <div class="card-value" style="color: var(--primary);">{{ '{:,.2f}'.format(detail.metrics.expected_stock_kg) }} <span style="font-size:1rem; font-weight:500;">kg</span></div>
+    <div class="card-subtext" style="color: var(--text-secondary); font-weight: 600;">
+      {{ '{:,.1f}'.format(detail.metrics.expected_stock_kg / 1000.0) }} MT derived balance
+    </div>
+  </div>
+</section>
+
+<!-- FORMULA EXPLANATION BANNER -->
+<div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:12px 18px; margin-bottom:28px; font-size:0.85rem; color:#1e40af; display:flex; align-items:center; gap:10px;">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+  <div>
+    <strong>Architectural Invariant:</strong> Expected Closing Stock (<code>{{ '{:,.2f}'.format(detail.metrics.expected_stock_kg) }} kg</code>) = Opening Stock (<code>{{ '{:,.0f}'.format(detail.metrics.opening_stock_kg) }}</code>) + Received (<code>{{ '{:,.0f}'.format(detail.metrics.receipts_kg) }}</code>) &minus; Dispatched (<code>{{ '{:,.0f}'.format(detail.metrics.dispatches_kg) }}</code>) &plusmn; Adjustments (<code>{{ '{:,.0f}'.format(detail.metrics.adjustments_kg) }}</code>).
+  </div>
+</div>
+
+<!-- OUTGOING DISPATCHES TABLE -->
+<section class="table-card" aria-label="Outgoing Dispatches">
+  <div class="table-header">
+    <div>
+      <h2 class="table-title">Outgoing Dispatches to Fair-Price Shops</h2>
+      <p style="font-size:0.8rem; color:var(--text-secondary); margin-top:2px;">Consignments dispatched to retail shops. (Dispatch and Receipt are decoupled events).</p>
+    </div>
+    <span class="chart-badge">{{ detail.outgoing_dispatches | length }} Dispatches</span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="custom-table" id="outgoingDispatchesTable">
+      <thead>
+        <tr>
+          <th>Delivery ID</th>
+          <th>Destination Shop</th>
+          <th>Dispatched Date</th>
+          <th>Expected Arrival</th>
+          <th style="text-align: right;">Dispatched (kg)</th>
+          <th style="text-align: right;">Received (kg)</th>
+          <th style="text-align: center;">Delivery Status</th>
+          <th>Consignment Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in detail.outgoing_dispatches %}
+        <tr>
+          <td><strong>{{ d.delivery_id }}</strong></td>
+          <td>
+            <a href="/shops/{{ d.shop_id }}" class="table-link">
+              {{ d.shop_name }} ({{ d.shop_id }})
+            </a>
+          </td>
+          <td>{{ d.dispatched_date }}</td>
+          <td>{{ d.expected_delivery_date }}</td>
+          <td style="text-align: right; font-family: monospace; font-weight: 600;">{{ '{:,.2f}'.format(d.dispatched_qty_kg) }}</td>
+          <td style="text-align: right; font-family: monospace;">
+            {% if d.received_qty_kg > 0 %}
+              {{ '{:,.2f}'.format(d.received_qty_kg) }}
+            {% else %}
+              <span style="color:var(--text-muted);">&mdash;</span>
+            {% endif %}
+          </td>
+          <td style="text-align: center;">
+            <span class="badge {% if d.status == 'DELIVERED' %}badge-normal{% elif d.status == 'DELAYED' %}badge-delayed{% elif d.status == 'RECEIVED_WITH_DIFFERENCE' %}badge-low{% else %}badge-low{% endif %}">
+              {{ d.status.replace('_', ' ') }}
+            </span>
+          </td>
+          <td style="font-size: 0.8rem; color: var(--text-secondary);">{{ d.notes }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="8" style="text-align: center; padding: 36px 16px; color: var(--text-secondary);">
+            <div style="font-size: 28px; margin-bottom: 6px;">📦</div>
+            <strong style="color: var(--text-primary); font-size: 14px; display: block; margin-bottom: 4px;">No outgoing dispatches recorded</strong>
+            <span style="font-size: 13px;">No dispatches to fair price shops have been logged for this godown yet.</span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- INCOMING RECEIPTS TABLE -->
+<section class="table-card" aria-label="Incoming Receipts">
+  <div class="table-header">
+    <h2 class="table-title">Incoming Grain Receipts (FCI / Supplier)</h2>
+    <span class="chart-badge">{{ detail.incoming_receipts | length }} Consignments</span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="custom-table" id="incomingReceiptsTable">
+      <thead>
+        <tr>
+          <th>Movement ID</th>
+          <th>Receipt Date</th>
+          <th>Consignment Reference</th>
+          <th style="text-align: right;">Quantity Received (kg)</th>
+          <th>Recorded By</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in detail.incoming_receipts %}
+        <tr>
+          <td><code>{{ r.id }}</code></td>
+          <td>{{ r.timestamp }}</td>
+          <td><strong>{{ r.reference_id }}</strong></td>
+          <td style="text-align: right; font-family: monospace; font-weight: 700; color: var(--status-normal);">
+            +{{ '{:,.2f}'.format(r.quantity_kg) }}
+          </td>
+          <td>{{ r.created_by }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="5" style="text-align: center; padding: 36px 16px; color: var(--text-secondary);">
+            <div style="font-size: 28px; margin-bottom: 6px;">📥</div>
+            <strong style="color: var(--text-primary); font-size: 14px; display: block; margin-bottom: 4px;">No central receipts recorded</strong>
+            <span style="font-size: 13px;">No central pool grain receipts have been recorded for this storage facility yet.</span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

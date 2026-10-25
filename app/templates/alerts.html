@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+
+{% block title %}Alert Centre | Smart Ration Tracker{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+  <a href="/">Tamil Nadu</a>
+  <span class="breadcrumb-separator">&gt;</span>
+  <span style="color: var(--text-primary); font-weight: 600;">Alert &amp; Operational Attention Centre</span>
+</div>
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">PDS Operational Alert Centre</h1>
+    <p class="page-subtitle">Low stock, delayed consignments, physical discrepancies &amp; reporting lapses &bull; Neutral verification protocol</p>
+  </div>
+
+  <div class="controls-group">
+    <button onclick="triggerScan()" class="select-input" style="background:var(--primary); color:#ffffff; font-weight:700; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+      Run Alert Scan
+    </button>
+  </div>
+</div>
+
+<!-- TOAST NOTIFICATION CONTAINER -->
+<div id="alertToast" style="display:none; padding:12px 18px; border-radius:8px; margin-bottom:20px; font-weight:600; font-size:0.9rem;"></div>
+
+<!-- FOUR ALERT KPI STAT CARDS -->
+<section class="cards-grid" aria-label="Alert Counts">
+  <div class="stat-card" style="border-left: 4px solid var(--status-critical);">
+    <div class="card-label">Open Alerts</div>
+    <div class="card-value" style="color: var(--status-critical);" id="statOpen">
+      {{ stats.open }}
+    </div>
+    <div class="card-subtext">Immediate action / dispatch required</div>
+  </div>
+
+  <div class="stat-card" style="border-left: 4px solid var(--status-low);">
+    <div class="card-label">Under Verification</div>
+    <div class="card-value" style="color: var(--status-low);" id="statUnderVerif">
+      {{ stats.under_verification }}
+    </div>
+    <div class="card-subtext">Field inquiry or audit in progress</div>
+  </div>
+
+  <div class="stat-card" style="border-left: 4px solid var(--status-normal);">
+    <div class="card-label">Resolved Alerts</div>
+    <div class="card-value" style="color: var(--status-normal);" id="statResolved">
+      {{ stats.resolved }}
+    </div>
+    <div class="card-subtext">Verified and officially closed</div>
+  </div>
+
+  <div class="stat-card" style="border-left: 4px solid var(--primary-light);">
+    <div class="card-label">Total Tracked</div>
+    <div class="card-value" id="statTotal">
+      {{ stats.total }}
+    </div>
+    <div class="card-subtext">Active and resolved system notices</div>
+  </div>
+</section>
+
+<!-- FILTER BAR -->
+<div style="background:#ffffff; border:1px solid var(--border-subtle); border-radius:var(--radius); padding:16px; margin-bottom:24px; display:flex; flex-wrap:wrap; gap:12px; align-items:center;">
+  <div>
+    <label for="filterStatus" style="font-size:0.75rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:4px;">STATUS:</label>
+    <select id="filterStatus" class="select-input" onchange="applyFilters()">
+      <option value="">All Statuses</option>
+      <option value="OPEN" selected>Open</option>
+      <option value="UNDER_VERIFICATION">Under Verification</option>
+      <option value="RESOLVED">Resolved</option>
+    </select>
+  </div>
+
+  <div>
+    <label for="filterType" style="font-size:0.75rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:4px;">ALERT TYPE:</label>
+    <select id="filterType" class="select-input" onchange="applyFilters()">
+      <option value="">All Types</option>
+      <option value="LOW_STOCK">Low Stock</option>
+      <option value="DELAYED_DELIVERY">Delayed Delivery</option>
+      <option value="STOCK_DISCREPANCY">Stock Discrepancy</option>
+      <option value="MISSING_DATA">Missing Data</option>
+    </select>
+  </div>
+
+  <div>
+    <label for="filterSeverity" style="font-size:0.75rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:4px;">SEVERITY:</label>
+    <select id="filterSeverity" class="select-input" onchange="applyFilters()">
+      <option value="">All Severities</option>
+      <option value="CRITICAL">Critical</option>
+      <option value="HIGH">High</option>
+      <option value="MEDIUM">Medium</option>
+    </select>
+  </div>
+
+  <div style="margin-left:auto;">
+    <button onclick="resetFilters()" class="select-input" style="font-size:0.85rem; cursor:pointer;">Reset Filters</button>
+  </div>
+</div>
+
+<!-- ALERT STREAM TABLE -->
+<section class="table-card" aria-label="Alerts Table">
+  <div class="table-header">
+    <h2 class="table-title">Active &amp; Historical Operational Alerts</h2>
+    <span class="chart-badge" id="alertsCountBadge">{{ alerts | length }} Alerts</span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="custom-table" id="alertsTable">
+      <thead>
+        <tr>
+          <th>Alert ID</th>
+          <th>Severity</th>
+          <th>Alert Type</th>
+          <th>Location</th>
+          <th>Explanation (Neutral Protocol)</th>
+          <th>Assigned Role</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="alertsTableBody">
+        {% for a in alerts %}
+        <tr id="row-{{ a.id }}" data-status="{{ a.status }}" data-type="{{ a.alert_type }}" data-severity="{{ a.severity }}">
+          <td><code>{{ a.id }}</code></td>
+          <td>
+            <span class="badge {% if a.severity == 'CRITICAL' %}badge-critical{% elif a.severity == 'HIGH' %}badge-low{% else %}badge-delayed{% endif %}">
+              {{ a.severity }}
+            </span>
+          </td>
+          <td><strong>{{ a.alert_type.replace('_', ' ') }}</strong></td>
+          <td>
+            {% if a.location_type == 'godown' %}
+              <a href="/godowns/{{ a.location_id }}" class="table-link">{{ a.location_id }}</a>
+            {% else %}
+              <a href="/shops/{{ a.location_id }}" class="table-link">{{ a.location_id }}</a>
+            {% endif %}
+          </td>
+          <td style="max-width:340px; font-size:0.85rem; color:var(--text-secondary);">
+            {{ a.explanation }}
+            {% if a.verification_notes %}
+            <div style="margin-top:6px; padding:6px 8px; background:#f1f5f9; border-radius:4px; font-size:0.75rem; color:var(--text-primary); font-family:monospace;">
+              {{ a.verification_notes }}
+            </div>
+            {% endif %}
+          </td>
+          <td><span style="font-size:0.8rem; color:var(--text-secondary);">{{ a.assigned_role.replace('_', ' ') }}</span></td>
+          <td>
+            <span class="badge {% if a.status == 'OPEN' %}badge-critical{% elif a.status == 'UNDER_VERIFICATION' %}badge-low{% else %}badge-normal{% endif %}">
+              {{ a.status.replace('_', ' ') }}
+            </span>
+          </td>
+          <td>
+            {% if a.status != 'RESOLVED' %}
+            <div style="display:flex; gap:6px;">
+              {% if a.status == 'OPEN' %}
+              <button onclick="openActionModal('{{ a.id }}', 'UNDER_VERIFICATION')" class="select-input" style="padding:4px 8px; font-size:0.75rem; background:#f59e0b; color:#ffffff; border:none; cursor:pointer; font-weight:600;">
+                Verify
+              </button>
+              {% endif %}
+              <button onclick="openActionModal('{{ a.id }}', 'RESOLVED')" class="select-input" style="padding:4px 8px; font-size:0.75rem; background:var(--status-normal); color:#ffffff; border:none; cursor:pointer; font-weight:600;">
+                Resolve
+              </button>
+            </div>
+            {% else %}
+            <span style="font-size:0.75rem; color:var(--status-normal); font-weight:700;">&check; Closed</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ACTION / RESOLUTION MODAL -->
+<div id="actionModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
+  <div style="background:#ffffff; border-radius:12px; width:90%; max-width:520px; padding:24px; box-shadow:var(--shadow-lg);">
+    <h3 id="modalTitle" style="font-size:1.15rem; font-weight:700; margin-bottom:8px;">Update Alert Status</h3>
+    <p id="modalDesc" style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:16px;">
+      Mandatory verification notes are required to document the action taken.
+    </p>
+
+    <input type="hidden" id="modalAlertId">
+    <input type="hidden" id="modalTargetStatus">
+
+    <div style="margin-bottom:20px;">
+      <label for="modalNotes" style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:4px;">Verification Notes (min 5 characters):</label>
+      <textarea id="modalNotes" class="select-input" style="width:100%; height:100px; resize:vertical;" placeholder="e.g. Field inspection conducted with Shop In-charge; physical bags verified on scale." required></textarea>
+    </div>
+
+    <div style="display:flex; justify-content:flex-end; gap:10px;">
+      <button onclick="closeActionModal()" class="select-input" style="cursor:pointer;">Cancel</button>
+      <button onclick="submitAlertAction()" class="select-input" style="background:var(--primary); color:#ffffff; font-weight:700; border:none; cursor:pointer;">
+        Save &amp; Update Status &rarr;
+      </button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/alerts.js"></script>
+{% endblock %}

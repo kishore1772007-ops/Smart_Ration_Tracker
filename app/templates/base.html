@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Smart Ration Tracker | Tamil Nadu PDS{% endblock %}</title>
+  <meta name="description" content="Tamil Nadu Public Distribution System rice stock monitoring, physical reconciliation, and predictive planning dashboard.">
+  
+  <!-- Modern Google Font: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Main Stylesheet -->
+  <link rel="stylesheet" href="/static/css/main.css">
+
+  <!-- Chart.js 4.x CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+
+  {% block head %}{% endblock %}
+</head>
+<body>
+
+  <!-- MANDATORY PERMANENT DEMO BANNER -->
+  <aside class="demo-banner" role="banner" id="demoBanner">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+      <line x1="12" y1="9" x2="12" y2="13"/>
+      <line x1="12" y1="17" x2="12.01" y2="17"/>
+    </svg>
+    <span>Demo Dataset — Not Official Government Data</span>
+  </aside>
+
+  <!-- Navigation Bar -->
+  <nav class="navbar" role="navigation">
+    <a href="/" class="brand">
+      <div class="brand-emblem">TN</div>
+      <div>
+        <div class="brand-title">Smart Ration Tracker</div>
+        <div class="brand-subtitle">Civil Supplies & Consumer Protection Dept</div>
+      </div>
+    </a>
+
+    <ul class="nav-links">
+      <li><a href="/" class="{% if active_page == 'dashboard' %}active{% endif %}" id="navDashboard">State Dashboard</a></li>
+      <li><a href="/transactions" class="{% if active_page == 'transactions' %}active{% endif %}" id="navTransactions">Operations &amp; Log</a></li>
+      <li><a href="/reports" class="{% if active_page == 'reports' %}active{% endif %}" id="navReports">Monthly Reports</a></li>
+      <li><a href="/alerts" class="{% if active_page == 'alerts' %}active{% endif %}" id="navAlerts">Alert Centre</a></li>
+      <li><a href="/docs" target="_blank" id="navDocs">API Docs</a></li>
+    </ul>
+
+    <div style="display: flex; align-items: center; gap: 12px;">
+      {% if current_user %}
+      <div class="user-badge" id="userRoleBadge" style="display: flex; align-items: center; gap: 6px;">
+        <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#10b981;"></span>
+        <span><strong>{{ current_user.full_name }}</strong> ({{ current_user.role }}{% if current_user.shop_id %}: {{ current_user.shop_id }}{% elif current_user.godown_id %}: {{ current_user.godown_id }}{% elif current_user.district_id %}: Dist {{ current_user.district_id }}{% endif %})</span>
+      </div>
+      <a href="/logout" class="btn" style="background:#fee2e2; color:#b91c1c; padding: 6px 12px; font-size: 12px; border-radius: 4px; text-decoration: none; border: 1px solid #fca5a5;">Sign Out</a>
+      {% else %}
+      <a href="/login" class="btn" style="background:#2563eb; color:white; padding: 6px 14px; font-size: 13px; border-radius: 4px; text-decoration: none;">Sign In</a>
+      {% endif %}
+    </div>
+  </nav>
+
+  <!-- Main Content Block -->
+  <main class="main-container" id="mainContent">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <p>Tamil Nadu Public Distribution System (TNPDS) — Stock Monitoring & Demand Planning Dashboard &bull; <strong>Demo Dataset — Not Official Government Data</strong></p>
+  </footer>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

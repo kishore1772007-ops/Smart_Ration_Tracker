@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+
+{% block title %}Monthly Reports & Analytics | Smart Ration Tracker{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+  <a href="/">Tamil Nadu</a>
+  <span class="breadcrumb-separator">&gt;</span>
+  <span style="color: var(--text-primary); font-weight: 600;">Monthly Operations &amp; Reconciliation Reports</span>
+</div>
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Monthly PDS Stock &amp; Distribution Reports</h1>
+    <p class="page-subtitle">Monthly received, distributed, derived closing stocks &bull; Month-over-Month (MoM) comparison</p>
+  </div>
+
+  <div class="controls-group">
+    <!-- Month Filter -->
+    <select id="filterMonth" class="select-input" onchange="refreshReport()">
+      <option value="2026-10" {% if report.report_month == '2026-10' %}selected{% endif %}>October 2026</option>
+      <option value="2026-09" {% if report.report_month == '2026-09' %}selected{% endif %}>September 2026</option>
+      <option value="2026-08" {% if report.report_month == '2026-08' %}selected{% endif %}>August 2026</option>
+      <option value="2026-07" {% if report.report_month == '2026-07' %}selected{% endif %}>July 2026</option>
+      <option value="2026-06" {% if report.report_month == '2026-06' %}selected{% endif %}>June 2026</option>
+      <option value="2026-05" {% if report.report_month == '2026-05' %}selected{% endif %}>May 2026</option>
+    </select>
+
+    <!-- District Filter -->
+    <select id="filterDistrict" class="select-input" onchange="refreshReport()">
+      <option value="">All Districts</option>
+      {% for d in districts %}
+      <option value="{{ d.id }}" {% if report.filter_district_id == d.id %}selected{% endif %}>{{ d.name }}</option>
+      {% endfor %}
+    </select>
+
+    <!-- CSV Export Button -->
+    <a id="btnExportCsv" href="/api/reports/monthly?format=csv&month={{ report.report_month }}{% if report.filter_district_id %}&district_id={{ report.filter_district_id }}{% endif %}" class="select-input" style="background:var(--primary); color:#ffffff; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Export CSV
+    </a>
+  </div>
+</div>
+
+<!-- FOUR REPORT KPI CARDS -->
+<section class="cards-grid" aria-label="Monthly Aggregates">
+  <div class="stat-card" style="border-left: 4px solid var(--status-normal);">
+    <div class="card-label">Total Received</div>
+    <div class="card-value" style="color: var(--status-normal);" id="cardTotalReceived">
+      {{ '{:,.0f}'.format(report.totals.total_received_kg) }} <span style="font-size:1rem; font-weight:500;">kg</span>
+    </div>
+    <div class="card-subtext">{{ '{:,.1f}'.format(report.totals.total_received_kg / 1000.0) }} MT confirmed deliveries</div>
+  </div>
+
+  <div class="stat-card" style="border-left: 4px solid var(--primary-light);">
+    <div class="card-label">Total Distributed</div>
+    <div class="card-value" style="color: var(--primary-light);" id="cardTotalDistributed">
+      {{ '{:,.0f}'.format(report.totals.total_distributed_kg) }} <span style="font-size:1rem; font-weight:500;">kg</span>
+    </div>
+    <div class="card-subtext">{{ '{:,.1f}'.format(report.totals.total_distributed_kg / 1000.0) }} MT issued via EPOS</div>
+  </div>
+
+  <div class="stat-card" style="border-left: 4px solid var(--primary);">
+    <div class="card-label">Derived Closing Stock</div>
+    <div class="card-value" style="color: var(--primary);" id="cardTotalClosing">
+      {{ '{:,.0f}'.format(report.totals.total_closing_stock_kg) }} <span style="font-size:1rem; font-weight:500;">kg</span>
+    </div>
+    <div class="card-subtext">Across {{ report.totals.shops_count }} retail distribution shops</div>
+  </div>
+
+  <div class="stat-card" style="border-left: 4px solid #8b5cf6;">
+    <div class="card-label">Month-over-Month (MoM)</div>
+    <div class="card-value" id="cardMom" style="color: {% if report.totals.mom_pct >= 0 %}var(--status-normal){% else %}var(--status-low){% endif %};">
+      {{ '{:+,.1f}'.format(report.totals.mom_pct) }}%
+    </div>
+    <div class="card-subtext" id="cardMomSub">
+      {{ '{:+,.0f}'.format(report.totals.mom_diff_kg) }} kg vs {{ report.previous_month }}
+    </div>
+  </div>
+</section>
+
+<!-- DISTRICT COMPARISON SUMMARY TABLE -->
+<section class="table-card" aria-label="District Comparison">
+  <div class="table-header">
+    <h2 class="table-title">District Performance &amp; MoM Comparison</h2>
+    <span class="chart-badge">Month: {{ report.report_month }}</span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="custom-table" id="districtComparisonTable">
+      <thead>
+        <tr>
+          <th>District Code</th>
+          <th>District Name</th>
+          <th style="text-align: center;">Shops</th>
+          <th style="text-align: right;">Received (kg)</th>
+          <th style="text-align: right;">Distributed (kg)</th>
+          <th style="text-align: right;">Prev Month Dist (kg)</th>
+          <th style="text-align: right;">MoM Trend</th>
+          <th style="text-align: right;">Derived Closing Stock (kg)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in report.districts_summary %}
+        <tr>
+          <td><strong>{{ d.district_code }}</strong></td>
+          <td><a href="/districts/{{ d.district_id }}" class="table-link">{{ d.district_name }}</a></td>
+          <td style="text-align: center;">{{ d.shops_count }}</td>
+          <td style="text-align: right; font-family: monospace; color: var(--status-normal);">+{{ '{:,.2f}'.format(d.total_received_kg) }}</td>
+          <td style="text-align: right; font-family: monospace; font-weight: 600;">{{ '{:,.2f}'.format(d.total_distributed_kg) }}</td>
+          <td style="text-align: right; font-family: monospace; color: var(--text-muted);">{{ '{:,.2f}'.format(d.prev_distributed_kg) }}</td>
+          <td style="text-align: right; font-family: monospace; font-weight: 700; color: {% if d.mom_pct >= 0 %}var(--status-normal){% else %}#b45309{% endif %};">
+            {{ '{:+,.1f}'.format(d.mom_pct) }}% ({{ '{:+,.0f}'.format(d.mom_diff_kg) }} kg)
+          </td>
+          <td style="text-align: right; font-family: monospace; font-weight: 700; color: var(--primary);">{{ '{:,.2f}'.format(d.closing_stock_kg) }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="8" style="text-align: center; padding: 36px 16px; color: var(--text-secondary);">
+            <div style="font-size: 28px; margin-bottom: 6px;">🏛️</div>
+            <strong style="color: var(--text-primary); font-size: 14px; display: block; margin-bottom: 4px;">No district reports match the filter</strong>
+            <span style="font-size: 13px;">Try selecting another month or clearing the district filter above.</span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- FAIR-PRICE SHOP DETAILED TABLE -->
+<section class="table-card" aria-label="Detailed Shop Breakdown">
+  <div class="table-header">
+    <h2 class="table-title">Fair-Price Shop Detailed Distribution Ledger</h2>
+    <span class="chart-badge">{{ report.shops_detail | length }} Shops</span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="custom-table" id="shopsDetailTable">
+      <thead>
+        <tr>
+          <th>Shop ID</th>
+          <th>Shop Name</th>
+          <th>District</th>
+          <th style="text-align: right;">Opening (kg)</th>
+          <th style="text-align: right;">Received (kg)</th>
+          <th style="text-align: right;">Distributed (kg)</th>
+          <th style="text-align: right;">Prev Month (kg)</th>
+          <th style="text-align: right;">MoM Trend</th>
+          <th style="text-align: right;">Closing Stock (kg)</th>
+          <th style="text-align: center;">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in report.shops_detail %}
+        <tr>
+          <td><strong>{{ s.shop_code }}</strong></td>
+          <td><a href="/shops/{{ s.shop_id }}" class="table-link">{{ s.shop_name }}</a></td>
+          <td>{{ s.district_name }}</td>
+          <td style="text-align: right; font-family: monospace;">{{ '{:,.2f}'.format(s.opening_stock_kg) }}</td>
+          <td style="text-align: right; font-family: monospace; color: var(--status-normal);">+{{ '{:,.2f}'.format(s.received_kg) }}</td>
+          <td style="text-align: right; font-family: monospace; font-weight: 600;">{{ '{:,.2f}'.format(s.distributed_kg) }}</td>
+          <td style="text-align: right; font-family: monospace; color: var(--text-muted);">{{ '{:,.2f}'.format(s.prev_distributed_kg) }}</td>
+          <td style="text-align: right; font-family: monospace; font-weight: 700; color: {% if s.mom_pct >= 0 %}var(--status-normal){% else %}#b45309{% endif %};">
+            {{ '{:+,.1f}'.format(s.mom_pct) }}%
+          </td>
+          <td style="text-align: right; font-family: monospace; font-weight: 700; color: var(--primary);">{{ '{:,.2f}'.format(s.closing_stock_kg) }}</td>
+          <td style="text-align: center;">
+            <span class="badge {% if s.status == 'CRITICAL' %}badge-critical{% elif s.status == 'LOW' %}badge-low{% else %}badge-normal{% endif %}">
+              {{ s.status }}
+            </span>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="10" style="text-align: center; padding: 40px 16px; color: var(--text-secondary);">
+            <div style="font-size: 32px; margin-bottom: 8px;">📊</div>
+            <strong style="color: var(--text-primary); font-size: 15px; display: block; margin-bottom: 4px;">No shop records found for this period</strong>
+            <span style="font-size: 13px;">No shop transaction records match the specified filters. Try selecting a different reporting month.</span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function refreshReport() {
+    const month = document.getElementById("filterMonth").value;
+    const districtId = document.getElementById("filterDistrict").value;
+    let url = `/reports?month=${encodeURIComponent(month)}`;
+    if (districtId) {
+      url += `&district_id=${encodeURIComponent(districtId)}`;
+    }
+    window.location.href = url;
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,248 @@
+{% extends "base.html" %}
+
+{% block title %}State Dashboard | Smart Ration Tracker{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+  <span>Tamil Nadu</span>
+  <span class="breadcrumb-separator">&gt;</span>
+  <span style="color: var(--text-primary); font-weight: 600;">Statewide Stock Overview</span>
+</div>
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Rice Stock & Distribution Dashboard</h1>
+    <p class="page-subtitle">Tamil Nadu Civil Supplies Corporation &bull; Real-time derived stock balances & physical verification</p>
+  </div>
+
+  <div class="controls-group">
+    <label for="monthSelector" style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary);">Filter Month:</label>
+    <select id="monthSelector" class="select-input" onchange="window.updateDashboardMonth(this.value)">
+      <option value="2026-10" selected>October 2026 (Current)</option>
+      <option value="2026-09">September 2026</option>
+      <option value="2026-08">August 2026</option>
+      <option value="2026-07">July 2026</option>
+      <option value="2026-06">June 2026</option>
+      <option value="2026-05">May 2026</option>
+      <option value="">All 6 Months Baseline</option>
+    </select>
+  </div>
+</div>
+
+<!-- SIX SUMMARY CARDS -->
+<section class="cards-grid" aria-label="Key Performance Indicators">
+  <!-- Card 1: Godown Stock -->
+  <div class="stat-card godown-card" id="cardGodown">
+    <div class="card-label">Godown Buffer Stock</div>
+    <div class="card-value" id="valGodownStock">{{ '{:,.0f}'.format(summary.cards.total_godown_stock_kg) }} <span style="font-size:1rem; font-weight:500;">kg</span></div>
+    <div class="card-subtext" id="subGodownStock">{{ '{:,.1f}'.format(summary.cards.total_godown_stock_mt) }} MT across 10 central granaries</div>
+  </div>
+
+  <!-- Card 2: Shop Stock -->
+  <div class="stat-card shop-card" id="cardShop">
+    <div class="card-label">Fair-Price Shop Stock</div>
+    <div class="card-value" id="valShopStock">{{ '{:,.0f}'.format(summary.cards.total_shop_stock_kg) }} <span style="font-size:1rem; font-weight:500;">kg</span></div>
+    <div class="card-subtext" id="subShopStock">{{ '{:,.1f}'.format(summary.cards.total_shop_stock_mt) }} MT across 50 retail shops</div>
+  </div>
+
+  <!-- Card 3: Monthly Distributed -->
+  <div class="stat-card dist-card" id="cardDistributed">
+    <div class="card-label">Rice Distributed (Month)</div>
+    <div class="card-value" id="valDistributed">{{ '{:,.0f}'.format(summary.cards.total_distributed_kg) }} <span style="font-size:1rem; font-weight:500;">kg</span></div>
+    <div class="card-subtext" id="subDistributed">{{ '{:,.1f}'.format(summary.cards.total_distributed_mt) }} MT distributed via POS</div>
+  </div>
+
+  <!-- Card 4: Beneficiary Households -->
+  <div class="stat-card cards-card" id="cardBeneficiaries">
+    <div class="card-label">Beneficiary Households</div>
+    <div class="card-value" id="valBeneficiaries">{{ '{:,.0f}'.format(summary.cards.total_beneficiaries) }}</div>
+    <div class="card-subtext">Active ration cardholders served</div>
+  </div>
+
+  <!-- Card 5: In-Transit / Delayed Deliveries -->
+  <div class="stat-card transit-card" id="cardTransit">
+    <div class="card-label">In-Transit / Delayed</div>
+    <div class="card-value" id="valTransit">{{ summary.cards.deliveries_delayed }} <span style="font-size:1rem; font-weight:500; color:var(--status-delayed);">Delayed</span></div>
+    <div class="card-subtext" id="subTransit">{{ summary.cards.deliveries_pending }} pending dispatch consignments</div>
+  </div>
+
+  <!-- Card 6: Attention Flags -->
+  <div class="stat-card alert-card" id="cardAlerts">
+    <div class="card-label">Attention Flags</div>
+    <div class="card-value" id="valAlerts" style="color:var(--status-critical);">{{ summary.cards.attention_flags }}</div>
+    <div class="card-subtext" id="subAlerts">{{ summary.stock_status.low + summary.stock_status.critical }} low-stock &bull; {{ summary.cards.discrepancies_count }} discrepancy verifications</div>
+  </div>
+</section>
+
+<!-- 2X2 CHARTS GRID -->
+<section class="charts-grid" aria-label="Visual Analytics">
+  <!-- Chart 1: Distribution by District (Bar) -->
+  <div class="chart-card">
+    <div class="chart-header">
+      <span class="chart-title">Rice Distribution by District (kg)</span>
+      <span class="chart-badge">Bar Chart</span>
+    </div>
+    <div class="chart-container">
+      <canvas id="chartDistrictDist"></canvas>
+    </div>
+  </div>
+
+  <!-- Chart 2: Monthly Distribution Trend (Line) -->
+  <div class="chart-card">
+    <div class="chart-header">
+      <span class="chart-title">6-Month Statewide Distribution Trend</span>
+      <span class="chart-badge">Line Chart</span>
+    </div>
+    <div class="chart-container">
+      <canvas id="chartMonthlyTrend"></canvas>
+    </div>
+  </div>
+
+  <!-- Chart 3: Stock Health Breakdown (Doughnut) -->
+  <div class="chart-card">
+    <div class="chart-header">
+      <span class="chart-title">Shop Stock Status Health</span>
+      <span class="chart-badge">Doughnut</span>
+    </div>
+    <div class="chart-container">
+      <canvas id="chartStockStatus"></canvas>
+    </div>
+  </div>
+
+  <!-- Chart 4: Expected vs Measured Stock Physical Audit (Bar) -->
+  <div class="chart-card">
+    <div class="chart-header">
+      <span class="chart-title">Expected vs. Measured Physical Audit (kg)</span>
+      <span class="chart-badge">Comparison Bar</span>
+    </div>
+    <div class="chart-container">
+      <canvas id="chartReconciliation"></canvas>
+    </div>
+  </div>
+</section>
+
+<!-- DISTRICT PERFORMANCE TABLE -->
+<section class="table-card" aria-label="District Stock Table">
+  <div class="table-header">
+    <h2 class="table-title">District Stock & Operations Summary</h2>
+    <span class="chart-badge">5 Districts &bull; 100% Derived</span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="custom-table" id="districtTable">
+      <thead>
+        <tr>
+          <th>District Code</th>
+          <th>District Name</th>
+          <th>Godowns</th>
+          <th>Shops</th>
+          <th style="text-align: right;">Godown Stock (kg)</th>
+          <th style="text-align: right;">Shop Stock (kg)</th>
+          <th style="text-align: right;">Total Stock (kg)</th>
+          <th style="text-align: right;">Distributed (kg)</th>
+          <th style="text-align: center;">Status</th>
+        </tr>
+      </thead>
+      <tbody id="districtTableBody">
+        {% for d in summary.districts_breakdown %}
+        <tr>
+          <td><strong>{{ d.district_code }}</strong></td>
+          <td>
+            <a href="/districts/{{ d.district_id }}" class="table-link" id="linkDistrict{{ d.district_id }}">
+              {{ d.district_name }}
+            </a>
+          </td>
+          <td>{{ d.godowns_count }}</td>
+          <td>{{ d.shops_count }}</td>
+          <td style="text-align: right; font-family: monospace; font-size: 0.95rem;">{{ '{:,.2f}'.format(d.total_godown_stock_kg) }}</td>
+          <td style="text-align: right; font-family: monospace; font-size: 0.95rem;">{{ '{:,.2f}'.format(d.total_shop_stock_kg) }}</td>
+          <td style="text-align: right; font-family: monospace; font-weight: 700; font-size: 0.95rem;">{{ '{:,.2f}'.format(d.total_stock_kg) }}</td>
+          <td style="text-align: right; font-family: monospace; font-size: 0.95rem;">{{ '{:,.2f}'.format(d.monthly_distributed_kg) }}</td>
+          <td style="text-align: center;">
+            <span class="badge {% if d.status_badge == 'Critical' %}badge-critical{% elif d.status_badge == 'Low' %}badge-low{% else %}badge-normal{% endif %}">
+              {{ d.status_badge }}
+            </span>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="9" style="text-align: center; padding: 40px 16px; color: var(--text-secondary);">
+            <div style="font-size: 32px; margin-bottom: 8px;">🏛️</div>
+            <strong style="color: var(--text-primary); font-size: 15px; display: block; margin-bottom: 4px;">No district records found</strong>
+            <span style="font-size: 13px;">No district stock summaries are available for the selected month.</span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr style="background: #f1f5f9; font-weight: 800;">
+          <td colspan="4">STATE TOTAL (TAMIL NADU)</td>
+          <td style="text-align: right; font-family: monospace;" id="footGodownStock">{{ '{:,.2f}'.format(summary.cards.total_godown_stock_kg) }}</td>
+          <td style="text-align: right; font-family: monospace;" id="footShopStock">{{ '{:,.2f}'.format(summary.cards.total_shop_stock_kg) }}</td>
+          <td style="text-align: right; font-family: monospace; color: var(--primary);" id="footTotalStock">{{ '{:,.2f}'.format(summary.cards.total_combined_stock_kg) }}</td>
+          <td style="text-align: right; font-family: monospace;" id="footDistStock">{{ '{:,.2f}'.format(summary.cards.total_distributed_kg) }}</td>
+          <td style="text-align: center;">Verified</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</section>
+
+<!-- PHYSICAL AUDIT RECONCILIATION TABLE -->
+<section class="table-card" aria-label="Physical Audit Discrepancies">
+  <div class="table-header">
+    <div>
+      <h2 class="table-title">Stock Inspection & Physical Audit Log</h2>
+      <p style="font-size:0.8rem; color:var(--text-secondary); margin-top:2px;">
+        Neutral Verification Protocol: Flags variance exceeding &plusmn;2% tolerance. No individual culpability is inferred.
+      </p>
+    </div>
+    <span class="chart-badge">Tolerance: 2.0%</span>
+  </div>
+
+  <div class="table-responsive">
+    <table class="custom-table" id="auditTable">
+      <thead>
+        <tr>
+          <th>Audit ID</th>
+          <th>Location</th>
+          <th>Date</th>
+          <th style="text-align: right;">Derived Expected (kg)</th>
+          <th style="text-align: right;">Measured Stock (kg)</th>
+          <th style="text-align: right;">Variance</th>
+          <th>Reconciliation Status</th>
+          <th>Inspector Remarks</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in summary.measurements_reconciliation %}
+        <tr>
+          <td><code>{{ m.measurement_id }}</code></td>
+          <td><strong>{{ m.location_id }}</strong> ({{ m.location_label }})</td>
+          <td>{{ m.measured_date }}</td>
+          <td style="text-align: right; font-family: monospace;">{{ '{:,.2f}'.format(m.expected_stock_kg) }}</td>
+          <td style="text-align: right; font-family: monospace;">{{ '{:,.2f}'.format(m.measured_stock_kg) }}</td>
+          <td style="text-align: right; font-family: monospace; {% if m.discrepancy_detected %}color:var(--status-critical); font-weight:700;{% endif %}">
+            {{ '{:+,.2f}'.format(m.difference_kg) }} kg ({{ m.difference_pct }}%)
+          </td>
+          <td>
+            <span class="badge {% if m.discrepancy_detected %}badge-critical{% else %}badge-normal{% endif %}">
+              {{ m.status_label }}
+            </span>
+          </td>
+          <td style="font-size: 0.85rem; color: var(--text-secondary);">{{ m.remarks }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<!-- Raw initial summary JSON passed from Jinja2 to hydrate Chart.js -->
+<script>
+  window.INITIAL_SUMMARY = {{ summary_json | safe }};
+</script>
+<script src="/static/js/dashboard.js"></script>
+{% endblock %}

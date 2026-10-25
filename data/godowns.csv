@@ -1,0 +1,11 @@
+id,code,name,district_id,capacity_kg,opening_stock_kg
+GDN-001,GDN-001,Chennai Central Buffer Godown,1,500000.0,180000.0
+GDN-002,GDN-002,Chennai North Storage Depot,1,450000.0,160000.0
+GDN-003,GDN-003,Coimbatore South Regional Godown,2,400000.0,150000.0
+GDN-004,GDN-004,Coimbatore West Operational Depot,2,400000.0,140000.0
+GDN-005,GDN-005,Madurai Central Granary Depot,3,450000.0,165000.0
+GDN-006,GDN-006,Madurai East Sector Godown,3,350000.0,130000.0
+GDN-007,GDN-007,Trichy Rockfort Supply Depot,4,400000.0,145000.0
+GDN-008,GDN-008,Trichy North Rural Godown,4,350000.0,135000.0
+GDN-009,GDN-009,Salem Central Storage Facility,5,450000.0,170000.0
+GDN-010,GDN-010,Salem Rural Logistics Depot,5,350000.0,125000.0
