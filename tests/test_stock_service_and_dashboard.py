@@ -185,3 +185,45 @@ def test_api_summary_endpoints():
         assert "total_shop_stock_kg" in d
         assert "total_stock_kg" in d
         assert d["total_stock_kg"] > 0
+
+
+def test_live_drill_down_endpoints():
+    """Verify 4-level hierarchical drill-down endpoints: State > District > Godown > Shop."""
+    # Level 1: State
+    res_state = client.get("/api/summary/live")
+    assert res_state.status_code == 200
+    state_data = res_state.json()
+    assert "kpis" in state_data
+    assert "district_health_map" in state_data
+    assert "top_shortage_districts" in state_data
+    assert state_data["kpis"]["total_stock_mt"] > 0
+
+    # Level 2: District
+    res_dist = client.get("/api/summary/district/1")
+    assert res_dist.status_code == 200
+    dist_data = res_dist.json()
+    assert dist_data["district"]["id"] == 1
+    assert "godowns" in dist_data
+    assert "shops" in dist_data
+    assert len(dist_data["godowns"]) > 0
+    assert len(dist_data["shops"]) > 0
+
+    # Level 3: Godown
+    first_gdn = dist_data["godowns"][0]["id"]
+    res_gdn = client.get(f"/api/summary/godown/{first_gdn}")
+    assert res_gdn.status_code == 200
+    gdn_data = res_gdn.json()
+    assert gdn_data["godown"]["id"] == first_gdn
+    assert "linked_shops" in gdn_data
+    assert "commodities_stock" in gdn_data
+
+    # Level 4: Shop
+    first_shop = dist_data["shops"][0]["id"]
+    res_shop = client.get(f"/api/summary/shop/{first_shop}")
+    assert res_shop.status_code == 200
+    shop_data = res_shop.json()
+    assert shop_data["shop"]["id"] == first_shop
+    assert "commodities" in shop_data
+    assert "recent_transactions" in shop_data
+    assert "prediction" in shop_data
+

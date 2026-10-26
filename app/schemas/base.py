@@ -15,6 +15,9 @@ class DistrictBase(BaseModel):
     code: str
     name: str
     headquarters: str
+    lat: Optional[float] = 11.1271
+    lng: Optional[float] = 78.6569
+    zone: Optional[str] = None
 
 
 class DistrictRead(DistrictBase):
@@ -32,6 +35,8 @@ class GodownBase(BaseModel):
     district_id: int
     capacity_kg: float
     opening_stock_kg: float
+    lat: Optional[float] = None
+    lng: Optional[float] = None
 
 
 class GodownRead(GodownBase):
@@ -52,7 +57,10 @@ class ShopBase(BaseModel):
     district_id: int
     godown_id: str
     beneficiaries_count: int
+    card_count: Optional[int] = 0
     opening_stock_kg: float
+    lat: Optional[float] = None
+    lng: Optional[float] = None
 
 
 class ShopRead(ShopBase):

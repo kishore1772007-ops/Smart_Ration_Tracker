@@ -12,6 +12,13 @@ from app.schemas.base import (
     CommodityRead,
     DeliveryRead,
 )
+from app.schemas.ingest import (
+    TransactionIngestRequest,
+    TransactionIngestResponse,
+    StockIngestRequest,
+    StockIngestResponse,
+    DataSourceStatusResponse,
+)
 
 __all__ = [
     "DistrictBase",
@@ -26,4 +33,9 @@ __all__ = [
     "StockMovementRead",
     "CommodityRead",
     "DeliveryRead",
+    "TransactionIngestRequest",
+    "TransactionIngestResponse",
+    "StockIngestRequest",
+    "StockIngestResponse",
+    "DataSourceStatusResponse",
 ]

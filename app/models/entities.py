@@ -25,6 +25,10 @@ class District(Base):
     code = Column(String(20), unique=True, nullable=False, index=True)
     name = Column(String(100), nullable=False)
     headquarters = Column(String(100), nullable=False)
+    lat = Column(Float, nullable=True, default=11.1271)
+    lng = Column(Float, nullable=True, default=78.6569)
+    geojson = Column(Text, nullable=True)
+    zone = Column(String(50), nullable=True)
 
     godowns = relationship("Godown", back_populates="district", cascade="all, delete-orphan")
     shops = relationship("Shop", back_populates="district", cascade="all, delete-orphan")
@@ -38,6 +42,7 @@ class Commodity(Base):
     name = Column(String(100), nullable=False)
     unit = Column(String(20), default="kg", nullable=False)
     buffer_pct = Column(Float, default=10.0, nullable=False)
+    monthly_entitlement_per_card = Column(Float, default=20.0, nullable=False)
 
 
 class Godown(Base):
@@ -49,6 +54,8 @@ class Godown(Base):
     district_id = Column(Integer, ForeignKey("districts.id"), nullable=False, index=True)
     capacity_kg = Column(Float, nullable=False)
     opening_stock_kg = Column(Float, nullable=False, default=0.0)
+    lat = Column(Float, nullable=True)
+    lng = Column(Float, nullable=True)
 
     district = relationship("District", back_populates="godowns")
     shops = relationship("Shop", back_populates="godown")
@@ -64,13 +71,17 @@ class Shop(Base):
     district_id = Column(Integer, ForeignKey("districts.id"), nullable=False, index=True)
     godown_id = Column(String(30), ForeignKey("godowns.id"), nullable=False, index=True)
     beneficiaries_count = Column(Integer, default=0, nullable=False)
+    card_count = Column(Integer, default=0, nullable=False)
     opening_stock_kg = Column(Float, nullable=False, default=0.0)
+    lat = Column(Float, nullable=True)
+    lng = Column(Float, nullable=True)
 
     district = relationship("District", back_populates="shops")
     godown = relationship("Godown", back_populates="shops")
     inbound_deliveries = relationship("Delivery", back_populates="to_shop")
     monthly_distributions = relationship("MonthlyDistribution", back_populates="shop")
     predictions = relationship("Prediction", back_populates="shop")
+    transactions = relationship("Transaction", back_populates="shop")
 
 
 class StockMovement(Base):
@@ -153,6 +164,7 @@ class Prediction(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True, index=True)
     shop_id = Column(String(30), ForeignKey("shops.id"), nullable=False, index=True)
+    item_id = Column(Integer, ForeignKey("commodities.id"), nullable=True, default=1)
     run_date = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     method = Column(String(50), default="rolling_average", nullable=False)
     lookback_months = Column(Integer, default=4, nullable=False)
@@ -161,10 +173,14 @@ class Prediction(Base):
     usable_stock_kg = Column(Float, nullable=False)
     planned_incoming_kg = Column(Float, nullable=False)
     recommended_replenishment_kg = Column(Float, nullable=False)
+    days_left = Column(Float, nullable=True)
+    predicted_stockout_date = Column(DateTime, nullable=True)
+    confidence = Column(Float, default=0.95, nullable=False)
     inputs_json = Column(Text, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     shop = relationship("Shop", back_populates="predictions")
+    commodity = relationship("Commodity")
 
 
 class Alert(Base):
@@ -178,6 +194,7 @@ class Alert(Base):
     id = Column(String(50), primary_key=True, index=True)  # e.g., ALT-00001
     location_type = Column(String(20), nullable=False, index=True)
     location_id = Column(String(30), nullable=False, index=True)
+    item_id = Column(Integer, ForeignKey("commodities.id"), nullable=True)
     alert_type = Column(String(50), nullable=False, index=True)  # LOW_STOCK, REPLENISHMENT_REQUIRED, etc.
     severity = Column(String(20), nullable=False)                # LOW, MEDIUM, HIGH, CRITICAL
     timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
@@ -186,6 +203,22 @@ class Alert(Base):
     status = Column(String(30), default="OPEN", nullable=False, index=True)
     verification_notes = Column(Text, nullable=True)
     resolution_date = Column(DateTime, nullable=True)
+
+    @property
+    def message(self) -> str:
+        return self.explanation
+
+    @message.setter
+    def message(self, val: str) -> None:
+        self.explanation = val
+
+    @property
+    def assigned_to(self) -> str:
+        return self.assigned_role
+
+    @assigned_to.setter
+    def assigned_to(self, val: str) -> None:
+        self.assigned_role = val
 
 
 class User(Base):
@@ -216,3 +249,54 @@ class AuditLog(Base):
     entity_id = Column(String(50), nullable=False, index=True)
     details = Column(Text, nullable=False)
     timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
+
+
+class StockLevel(Base):
+    """
+    Materialized/Snapshot multi-commodity stock level at any godown or shop.
+    Kept in sync via transactions and stock adjustments.
+    """
+    __tablename__ = "stock_levels"
+
+    id = Column(Integer, primary_key=True, autoincrement=True, index=True)
+    location_type = Column(String(20), nullable=False, index=True)  # 'godown' or 'shop'
+    location_id = Column(String(30), nullable=False, index=True)
+    item_id = Column(Integer, ForeignKey("commodities.id"), nullable=False, default=1, index=True)
+    qty_kg = Column(Float, nullable=False, default=0.0)
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+    source = Column(String(50), default="system", nullable=False)
+
+    commodity = relationship("Commodity")
+
+
+class Transaction(Base):
+    """
+    Live purchase transactions recorded at Fair Price Shops.
+    Source can be 'simulator', 'sensor' (smart scale), or 'ml_camera'.
+    """
+    __tablename__ = "transactions"
+
+    id = Column(String(50), primary_key=True, index=True)  # e.g., TXN-000001
+    shop_id = Column(String(30), ForeignKey("shops.id"), nullable=False, index=True)
+    item_id = Column(Integer, ForeignKey("commodities.id"), nullable=False, default=1, index=True)
+    qty_kg = Column(Float, nullable=False)
+    bags = Column(Integer, default=1, nullable=False)
+    card_no = Column(String(50), nullable=False, index=True)
+    source = Column(String(30), nullable=False, default="simulator", index=True)  # 'simulator', 'sensor', 'ml_camera'
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
+
+    shop = relationship("Shop", back_populates="transactions")
+    commodity = relationship("Commodity")
+
+
+class DataSourceSetting(Base):
+    """
+    Configuration for data sources (Simulator, IoT Smart Scale, ML Camera Feed).
+    """
+    __tablename__ = "data_source_settings"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    source_name = Column(String(50), unique=True, nullable=False)  # 'simulator', 'sensor', 'ml_camera'
+    is_active = Column(Integer, default=0, nullable=False)          # 1 = Active, 0 = Inactive
+    config_json = Column(Text, nullable=True)
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)

@@ -37,6 +37,18 @@ def get_all_districts(
     return [compute_district_summary(db, d.id, month=month) for d in districts]
 
 
+@router.get("/geojson")
+def get_districts_geojson():
+    """Returns Tamil Nadu 38 districts GeoJSON FeatureCollection for interactive Leaflet map."""
+    import os
+    import json
+    geojson_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data", "tamil_nadu_districts.geojson")
+    if os.path.exists(geojson_path):
+        with open(geojson_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    raise HTTPException(status_code=404, detail="Tamil Nadu GeoJSON map dataset not found")
+
+
 @router.get("/{district_id}")
 def get_district_by_id(
     district_id: int,

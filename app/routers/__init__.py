@@ -8,6 +8,7 @@ from app.routers.reports import router as reports_router
 from app.routers.predictions import router as predictions_router
 from app.routers.alerts import router as alerts_router
 from app.routers.auth import router as auth_router
+from app.routers.ingest import router as ingest_router
 
 __all__ = [
     "districts_router",
@@ -20,4 +21,5 @@ __all__ = [
     "predictions_router",
     "alerts_router",
     "auth_router",
+    "ingest_router",
 ]

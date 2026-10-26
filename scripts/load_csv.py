@@ -52,18 +52,31 @@ def load_all_csvs():
 
     session = SessionLocal()
     try:
-        # Districts
+        # District coordinate mapping
+        district_coords = {
+            1: (13.0827, 80.2707, "North Zone"),
+            2: (11.0168, 76.9558, "West Zone"),
+            3: (9.9252, 78.1198, "South Zone"),
+            4: (10.7905, 78.7047, "Central Zone"),
+            5: (11.6643, 78.1460, "West Zone"),
+        }
         with open(os.path.join(DATA_DIR, "districts.csv"), mode="r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
-            districts = [
-                District(
-                    id=int(r["id"]),
-                    code=r["code"],
-                    name=r["name"],
-                    headquarters=r["headquarters"],
+            districts = []
+            for r in reader:
+                d_id = int(r["id"])
+                lat, lng, zone = district_coords.get(d_id, (11.1271, 78.6569, "Central Zone"))
+                districts.append(
+                    District(
+                        id=d_id,
+                        code=r["code"],
+                        name=r["name"],
+                        headquarters=r["headquarters"],
+                        lat=lat,
+                        lng=lng,
+                        zone=zone,
+                    )
                 )
-                for r in reader
-            ]
             session.add_all(districts)
             session.commit()
             print(f"Loaded {len(districts)} districts")
@@ -88,36 +101,49 @@ def load_all_csvs():
         # Godowns
         with open(os.path.join(DATA_DIR, "godowns.csv"), mode="r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
-            godowns = [
-                Godown(
-                    id=r["id"],
-                    code=r["code"],
-                    name=r["name"],
-                    district_id=int(r["district_id"]),
-                    capacity_kg=float(r["capacity_kg"]),
-                    opening_stock_kg=float(r["opening_stock_kg"]),
+            godowns = []
+            for r in reader:
+                d_id = int(r["district_id"])
+                d_lat, d_lng, _ = district_coords.get(d_id, (11.1271, 78.6569, ""))
+                godowns.append(
+                    Godown(
+                        id=r["id"],
+                        code=r["code"],
+                        name=r["name"],
+                        district_id=d_id,
+                        capacity_kg=float(r["capacity_kg"]),
+                        opening_stock_kg=float(r["opening_stock_kg"]),
+                        lat=round(d_lat + 0.03 * (len(godowns) % 3 - 1), 5),
+                        lng=round(d_lng + 0.03 * (len(godowns) % 2 - 0.5), 5),
+                    )
                 )
-                for r in reader
-            ]
             session.add_all(godowns)
             session.commit()
             print(f"Loaded {len(godowns)} godowns")
 
         # Shops
+        godown_coord_map = {g.id: (g.lat or 11.0, g.lng or 78.0) for g in godowns}
         with open(os.path.join(DATA_DIR, "shops.csv"), mode="r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
-            shops = [
-                Shop(
-                    id=r["id"],
-                    code=r["code"],
-                    name=r["name"],
-                    district_id=int(r["district_id"]),
-                    godown_id=r["godown_id"],
-                    beneficiaries_count=int(r["beneficiaries_count"]),
-                    opening_stock_kg=float(r["opening_stock_kg"]),
+            shops = []
+            for r in reader:
+                g_id = r["godown_id"]
+                g_lat, g_lng = godown_coord_map.get(g_id, (11.1271, 78.6569))
+                cards = int(r["beneficiaries_count"])
+                shops.append(
+                    Shop(
+                        id=r["id"],
+                        code=r["code"],
+                        name=r["name"],
+                        district_id=int(r["district_id"]),
+                        godown_id=g_id,
+                        beneficiaries_count=cards,
+                        card_count=cards,
+                        opening_stock_kg=float(r["opening_stock_kg"]),
+                        lat=round(g_lat + 0.015 * (len(shops) % 5 - 2), 5),
+                        lng=round(g_lng + 0.015 * (len(shops) % 3 - 1), 5),
+                    )
                 )
-                for r in reader
-            ]
             session.add_all(shops)
             session.commit()
             print(f"Loaded {len(shops)} shops")

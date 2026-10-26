@@ -11,6 +11,9 @@ from app.models.entities import (
     Alert,
     User,
     AuditLog,
+    StockLevel,
+    Transaction,
+    DataSourceSetting,
 )
 
 __all__ = [
@@ -26,4 +29,7 @@ __all__ = [
     "Alert",
     "User",
     "AuditLog",
+    "StockLevel",
+    "Transaction",
+    "DataSourceSetting",
 ]

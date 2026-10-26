@@ -211,9 +211,64 @@ Follow this structured script for live presentations or stakeholder walkthroughs
 
 ---
 
+---
+
+## 🛰️ Phase 1 & 2: Live Ingestion API & Tamil Nadu Simulator
+
+### 1. Ingestion Data Contract (Source-Agnostic)
+The backend exposes a single unified data contract for retail purchases, whether produced by the simulator now, or IoT smart scales / camera ML models later:
+
+- `POST /api/ingest/transaction`:
+  ```json
+  {
+    "shop_id": "FPS-0001",
+    "item_id": 1,
+    "qty_kg": 15.0,
+    "bags": 3,
+    "card_no": "TN-01-4829103",
+    "source": "simulator",
+    "timestamp": "2026-10-26T08:30:00Z"
+  }
+  ```
+  *Effects*: Decrements stock balance, appends immutable row to `stock_movements`, logs to `transactions`, and triggers real-time low-stock alerts if stock drops critically low (< 300 kg).
+
+- `POST /api/ingest/stock`:
+  ```json
+  {
+    "location_type": "shop",
+    "location_id": "FPS-0001",
+    "item_id": 1,
+    "qty_kg": 4500.0,
+    "source": "sensor",
+    "timestamp": "2026-10-26T08:30:00Z"
+  }
+  ```
+  *Effects*: Updates physical stock snapshot. If an unexplained sudden drop (> 500 kg or >= 20%) occurs without matching transactions, automatically generates a neutral verification alert: `"Verification requested on stock balance"`.
+
+- `GET /api/transactions/live`: Real-time purchase transactions feed with item, bag count, weight, and shop info.
+- `GET /api/ingest/sources`: Status of active data source and ingestion counters.
+- `POST /api/ingest/source/activate`: Toggle active provenance (`simulator`, `sensor`, `ml_camera`).
+- `GET /api/districts/geojson`: Serves GeoJSON polygon FeatureCollection for all 38 Tamil Nadu districts.
+
+### 2. Live Simulator
+Can be triggered programmatically via API (`POST /api/simulator/start`, `POST /api/simulator/stop`) or executed via the standalone CLI runner:
+
+```powershell
+# Run the live CLI simulator (pushes transactions to /api/ingest/transaction every 2s)
+python scripts/live_simulator.py --url http://localhost:8000 --interval 2.0
+```
+
+### 3. Full 38-District Tamil Nadu Dataset Generator
+```powershell
+# Seed all 38 TN districts with 114 godowns, 570 shops, and 5 commodities
+python scripts/seed_tamil_nadu_38.py
+```
+
+---
+
 ## 🧪 Automated Test Suite Summary
 
-The automated test suite covers all 9 implementation phases:
+The automated test suite covers all implementation phases (70/70 tests passing):
 
 ```powershell
 python -m pytest tests/ -v
@@ -225,11 +280,13 @@ tests/test_auth_and_rbac.py ................. [12 PASSED]
 tests/test_database_and_api.py .............. [6 PASSED]
 tests/test_detail_pages.py .................. [7 PASSED]
 tests/test_forecast.py ...................... [5 PASSED]
+tests/test_ingestion_api.py ................. [7 PASSED]
 tests/test_mock_data.py ..................... [5 PASSED]
 tests/test_reports.py ....................... [4 PASSED]
+tests/test_simulator.py ..................... [3 PASSED]
 tests/test_stock_service_and_dashboard.py ... [6 PASSED]
 tests/test_transactions.py .................. [9 PASSED]
-========================= 60 passed in 28.02s =========================
+========================= 70 passed in 29.68s =========================
 ```
 
 ---
@@ -243,27 +300,33 @@ smart_ration_tracker/
 │   ├── database.py           # SQLite connection and session maker
 │   ├── main.py               # FastAPI entry point, Jinja2 filters, web routes
 │   ├── models/
-│   │   └── entities.py       # 12 SQLAlchemy models
+│   │   └── entities.py       # 15 SQLAlchemy models (District, Godown, Shop, StockLevel, Transaction, Alert...)
 │   ├── schemas/
 │   │   ├── auth.py           # Auth & profile schemas
-│   │   ├── base.py           # Core entity schemas
+│   │   ├── base.py           # Core entity schemas with lat/lng & card_count
+│   │   ├── ingest.py         # Transaction & stock ingestion data contracts
 │   │   ├── transactions.py   # Mutation schemas
 │   │   ├── predictions.py    # Forecasting schemas
 │   │   └── alerts.py         # Alert schemas
 │   ├── services/
 │   │   ├── stock.py          # Derived stock calculation & reconciliation
+│   │   ├── simulator_service.py # Live background purchase simulator & refill generator
 │   │   ├── transactions.py   # Business rules, movements, deliveries
 │   │   ├── forecast.py       # Rolling average & buffer replenishment
 │   │   ├── alert_engine.py   # Rule-based alert generation & scanning
 │   │   ├── reports.py        # Monthly reporting & CSV exporter
 │   │   └── auth.py           # Bcrypt hashing, JWT tokens & RBAC scoping
-│   ├── routers/              # 10 modular APIRouters
+│   ├── routers/              # 11 modular APIRouters (including ingest router)
 │   ├── templates/            # 8 Jinja2 HTML5 views with breadcrumbs
 │   └── static/               # Vanilla CSS design system & Chart.js controllers
-├── data/                     # 9 generated CSV datasets (seed=42)
+├── data/
+│   ├── tamil_nadu_districts.geojson # 38-district GeoJSON FeatureCollection
+│   └── *.csv                 # 9 generated CSV benchmark datasets (seed=42)
 ├── scripts/
+│   ├── seed_tamil_nadu_38.py # Full 38-district seed generator with coordinates
+│   ├── live_simulator.py     # Standalone CLI transaction simulator
 │   ├── generate_mock_data.py # Deterministic mock data generator
 │   └── load_csv.py           # Database loader & validator
-├── tests/                    # 9 test files (60 tests)
+├── tests/                    # 11 test files (70 tests passing)
 └── README.md                 # Complete documentation & demo script
 ```

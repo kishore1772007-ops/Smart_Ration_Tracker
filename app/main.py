@@ -37,6 +37,7 @@ from app.routers import (
     predictions_router,
     alerts_router,
     auth_router,
+    ingest_router,
 )
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -104,6 +105,7 @@ app.include_router(reports_router)
 app.include_router(predictions_router)
 app.include_router(alerts_router)
 app.include_router(auth_router)
+app.include_router(ingest_router)
 
 
 # -------------------------------------------------------------
